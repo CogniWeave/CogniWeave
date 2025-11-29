@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Mining Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #121212;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #header {
+            padding: 16px;
+            background: #1f1f1f;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 1px solid #333;
+        }
+
+        #container {
+            display: flex;
+            height: calc(100vh - 70px);
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #181818;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+        }
+
+        #content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .workflow-item {
+            padding: 12px;
+            margin: 10px;
+            background: #222;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+
+        .workflow-item:hover {
+            background: #333;
+        }
+
+        .event {
+            padding: 10px;
+            margin: 10px 0;
+            background: #181818;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="header">Task Mining Dashboard</div>
+
+    <div id="container">
+        <!-- LEFT: Workflows -->
+        <div id="sidebar">
+            <h3 style="padding-left:10px;">Workflows</h3>
+            <div id="workflow-list"></div>
+        </div>
+
+        <!-- RIGHT: Selected Workflow Details -->
+        <div id="content">
+            <h2 id="workflow-title">Select a workflow</h2>
+            <div id="workflow-events"></div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
