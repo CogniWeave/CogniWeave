@@ -1,8 +1,8 @@
 // content.js - Advanced Task Mining + Expanded UI Capture
 // ---------------------------------------------------------
 
-const CAPTURE_INPUT_VALUE = false; 
-const CAPTURE_INPUT_HASH = true; 
+const CAPTURE_INPUT_VALUE = false;
+const CAPTURE_INPUT_HASH = true;
 
 // ------------------ Safe Send ------------------
 function safeSend(msg) {
@@ -16,7 +16,7 @@ function safeSend(msg) {
 // ------------------ Helpers ------------------
 function debounce(func, wait) {
     let timeout;
-    return function(...args) {
+    return function (...args) {
         const context = this;
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(context, args), wait);
@@ -27,7 +27,7 @@ function getCssSelector(el) {
     if (!el) return null;
     if (el.id) return `#${el.id}`;
     const parts = [];
-    while (el && el.nodeType === 1 && el.tagName.toLowerCase() !== 'html') {
+    while (el && el.nodeType === 1 && el.tagName.toLowerCase() !== "html") {
         let part = el.tagName.toLowerCase();
         if (el.className) {
             const cls = String(el.className).trim().split(/\s+/)[0];
@@ -35,7 +35,9 @@ function getCssSelector(el) {
         }
         const parent = el.parentNode;
         if (parent) {
-            const siblings = Array.from(parent.children).filter(e => e.tagName === el.tagName);
+            const siblings = Array.from(parent.children).filter(
+                (e) => e.tagName === el.tagName
+            );
             if (siblings.length > 1) {
                 const idx = Array.from(parent.children).indexOf(el) + 1;
                 part += `:nth-child(${idx})`;
@@ -49,63 +51,62 @@ function getCssSelector(el) {
 
 function getXPath(el) {
     if (!el) return null;
-    let xpath = '';
+    let xpath = "";
     for (; el && el.nodeType === 1; el = el.parentNode) {
         let idx = 1;
         for (let sib = el.previousSibling; sib; sib = sib.previousSibling) {
             if (sib.nodeType === 1 && sib.nodeName === el.nodeName) idx++;
         }
-        xpath = '/' + el.nodeName.toLowerCase() + '[' + idx + ']' + xpath;
+        xpath = "/" + el.nodeName.toLowerCase() + "[" + idx + "]" + xpath;
     }
     return xpath || null;
 }
 
 function shortText(s, n = 120) {
-    if (!s) return '';
+    if (!s) return "";
     let t = String(s).trim();
-    return t.length > n ? t.slice(0, n) + '…' : t;
+    return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
 // ------------------ SHA-256 hashing ------------------
 async function sha256Hex(str) {
     const enc = new TextEncoder();
     const data = enc.encode(str);
-    const hash = await crypto.subtle.digest('SHA-256', data);
+    const hash = await crypto.subtle.digest("SHA-256", data);
     const arr = Array.from(new Uint8Array(hash));
-    return arr.map(b => b.toString(16).padStart(2, '0')).join('');
+    return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ------------------ DOM-TREE CAPTURE ------------------
 function getDomContext(el) {
     if (!el) return {};
 
-    // Parent element
     const parent = el.parentElement
         ? {
               tag: el.parentElement.tagName,
               id: el.parentElement.id,
-              classes: el.parentElement.className
+              classes: el.parentElement.className,
           }
         : null;
 
-    // Siblings
     const siblings = el.parentElement
-        ? Array.from(el.parentElement.children).map(e => ({
-              tag: e.tagName,
-              id: e.id,
-              classes: e.className,
-              text: shortText(e.innerText)
-          }))
+        ? Array.from(el.parentElement.children)
+              .slice(0, 7)
+              .map((e) => ({
+                  tag: e.tagName,
+                  id: e.id,
+                  classes: e.className,
+                  text: shortText(e.innerText),
+              }))
         : [];
 
-    // Ancestors
     const ancestors = [];
     let p = el.parentElement;
     while (p && p.tagName !== "HTML") {
         ancestors.push({
             tag: p.tagName,
             id: p.id,
-            classes: p.className
+            classes: p.className,
         });
         p = p.parentElement;
     }
@@ -117,7 +118,7 @@ function getDomContext(el) {
 function classifyElement(el, meta) {
     const text = (meta.text || "").toLowerCase();
     const id = (meta.id || "").toLowerCase();
-    const cls = (meta.classes || "").toLowerCase();
+    const cls = String(meta.classes || "").toLowerCase();
     const ph = (el.placeholder || "").toLowerCase();
 
     if (text.includes("login") || id.includes("login")) return "login_button";
@@ -130,7 +131,6 @@ function classifyElement(el, meta) {
     }
 
     if (meta.tag === "A") return "link";
-
     if (cls.includes("btn") || cls.includes("button")) return "button";
 
     return "generic_element";
@@ -145,74 +145,117 @@ async function buildEventObject(type, extra = {}) {
         title: document.title,
         viewport: { width: window.innerWidth, height: window.innerHeight },
         scrollY: window.scrollY || window.pageYOffset || 0,
-        page_fingerprint: window.location.hostname + "|" + document.title,
-        ...extra
+        page_fingerprint: [
+            location.hostname,
+            location.pathname.split("/")[1] || "",
+            document.body.children.length,
+        ].join("|"),
+        ...extra,
     };
 }
 
-// ------------------ Metadata ------------------
+// ------------------ Rich Element Metadata ------------------
+function extractSemanticMetadata(el) {
+    if (!el) return {};
+
+    return {
+        tag: el.tagName,
+        id: el.id || null,
+        classes: el.className || null,
+
+        aria_label: el.getAttribute("aria-label"),
+        role: el.getAttribute("role"),
+        name: el.getAttribute("name"),
+        title: el.getAttribute("title"),
+        placeholder: el.getAttribute("placeholder"),
+
+        text: (el.innerText || "").slice(0, 80),
+
+        icon_class: (() => {
+            const icon = el.querySelector("i, svg");
+            if (!icon) return null;
+            if (icon.tagName === "SVG") return "svg-icon";
+            return icon.className || null;
+        })(),
+    };
+}
+
+// ------------------ Meta From Element ------------------
 async function metaFromElement(el) {
     if (!el) return {};
 
-    const selector = getCssSelector(el);
-    const xpath = getXPath(el);
-    const text = shortText(el.innerText || el.textContent || "");
+    const semantic = extractSemanticMetadata(el);
+    const domCtx = getDomContext(el);
 
-    const dom = getDomContext(el);
-
-    const meta = {
-        tag: el.tagName,
-        id: el.id || "",
-        classes: el.className || "",
-        selector,
-        xpath,
-        text,
-        dom
+    return {
+        ...semantic,
+        css_selector: getCssSelector(el),
+        xpath: getXPath(el),
+        dom_context: domCtx,
+        element_type: classifyElement(el, semantic),
     };
-
-    meta.semantic_tag = classifyElement(el, meta);
-
-    return meta;
 }
 
 // ------------------ CLICK ------------------
-document.addEventListener("click", async (e) => {
-    const el = e.target;
-    const meta = await metaFromElement(el);
+document.addEventListener(
+    "click",
+    async (e) => {
+        const el = e.target;
+        const meta = await metaFromElement(el);
+        const rect = el.getBoundingClientRect();
 
-    const rect = el.getBoundingClientRect();
-
-    const obj = await buildEventObject("click", {
-        data: {
-            ...meta,
-            x: e.clientX,
-            y: e.clientY,
-            bbox: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-            button: e.button
-        }
-    });
-
-    safeSend(obj);
-}, true);
+        safeSend(
+            await buildEventObject("click", {
+                data: {
+                    ...meta,
+                    x: e.clientX,
+                    y: e.clientY,
+                    bbox: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
+                    button: e.button,
+                },
+            })
+        );
+    },
+    true
+);
 
 // ------------------ RIGHT CLICK ------------------
-document.addEventListener("contextmenu", async (e) => {
-    const meta = await metaFromElement(e.target);
-    safeSend(await buildEventObject("right_click", { data: meta }));
-}, true);
+document.addEventListener(
+    "contextmenu",
+    async (e) => {
+        safeSend(
+            await buildEventObject("right_click", {
+                data: await metaFromElement(e.target),
+            })
+        );
+    },
+    true
+);
 
-// ------------------ DRAG EVENTS ------------------
-document.addEventListener("dragstart", async (e) => {
-    safeSend(await buildEventObject("drag_start", {
-        data: await metaFromElement(e.target)
-    }));
-}, true);
+// ------------------ DRAG ------------------
+document.addEventListener(
+    "dragstart",
+    async (e) => {
+        safeSend(
+            await buildEventObject("drag_start", {
+                data: await metaFromElement(e.target),
+            })
+        );
+    },
+    true
+);
 
-document.addEventListener("drop", async (e) => {
-    safeSend(await buildEventObject("drop", {
-        data: await metaFromElement(e.target)
-    }));
-}, true);
+document.addEventListener(
+    "drop",
+    async (e) => {
+        safeSend(
+            await buildEventObject("drop", {
+                data: await metaFromElement(e.target),
+            })
+        );
+    },
+    true
+);
 
 // ------------------ INPUT ------------------
 function fieldNameForInput(el) {
@@ -240,8 +283,8 @@ async function handleInputEvent(e) {
                 ...meta,
                 field_type: el.type || el.tagName,
                 field_name: fieldNameForInput(el),
-                input: inputInfo
-            }
+                input: inputInfo,
+            },
         })
     );
 }
@@ -250,44 +293,133 @@ document.addEventListener("input", debounce(handleInputEvent, 300), true);
 document.addEventListener("change", handleInputEvent, true);
 
 // ------------------ FOCUS ------------------
-document.addEventListener("focusin", async (e) => {
-    safeSend(await buildEventObject("focus", { data: await metaFromElement(e.target) }));
-}, true);
+document.addEventListener(
+    "focusin",
+    async (e) => {
+        safeSend(
+            await buildEventObject("focus", {
+                data: await metaFromElement(e.target),
+            })
+        );
+    },
+    true
+);
 
-document.addEventListener("focusout", async (e) => {
-    safeSend(await buildEventObject("blur", { data: await metaFromElement(e.target) }));
-}, true);
+document.addEventListener(
+    "focusout",
+    async (e) => {
+        safeSend(
+            await buildEventObject("blur", {
+                data: await metaFromElement(e.target),
+            })
+        );
+    },
+    true
+);
 
 // ------------------ SCROLL ------------------
 function onScroll() {
     buildEventObject("scroll", {
         data: {
             scrollY: window.scrollY,
-            viewport: { w: window.innerWidth, h: window.innerHeight }
-        }
+            viewport: { w: window.innerWidth, h: window.innerHeight },
+        },
     }).then(safeSend);
 }
 window.addEventListener("scroll", debounce(onScroll, 300), { passive: true });
 
-// ------------------ NAVIGATION / PAGE VISIT ------------------
+// ------------------ NAVIGATION ------------------
 buildEventObject("page_visit", {
     data: {
         url: location.href,
         title: document.title,
-        referrer: document.referrer || ""
-    }
+        referrer: document.referrer || "",
+    },
 }).then(safeSend);
 
 window.addEventListener("popstate", () => {
     buildEventObject("navigation", {
-        data: { url: location.href, title: document.title }
+        data: { url: location.href, title: document.title },
     }).then(safeSend);
 });
 
+// ------------------ SPA pushState ------------------
+(function () {
+    const _pushState = history.pushState;
+    history.pushState = function () {
+        _pushState.apply(history, arguments);
+        safeSend({
+            type: "navigation",
+            url: location.href,
+            title: document.title,
+            timestamp: Date.now(),
+        });
+    };
+})();
+
 // ------------------ HEARTBEAT ------------------
 setInterval(() => {
-    buildEventObject("heartbeat", { data: { url: location.href } }).then(safeSend);
+    buildEventObject("heartbeat", { data: { url: location.href } }).then(
+        safeSend
+    );
 }, 60 * 1000);
 
-// ------------------ LOG ------------------
-console.log("CONTENT SCRIPT LOADED WITH DOM, DRAG, SEMANTICS");
+// ------------------ Visibility ------------------
+document.addEventListener("visibilitychange", () => {
+    safeSend({
+        type: "visibility_change",
+        visibility: document.visibilityState,
+        timestamp: Date.now(),
+    });
+});
+
+// ------------------ UI State Observer ------------------
+(function () {
+    let timer = null;
+    const observer = new MutationObserver((muts) => {
+        if (
+            muts.some(
+                (m) =>
+                    m.type === "childList" &&
+                    (m.addedNodes.length > 3 || m.removedNodes.length > 3)
+            )
+        ) {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                safeSend({
+                    type: "ui_state_change",
+                    hint:
+                        document.querySelector('[role="dialog"], .modal')
+                            ? "modal_opened"
+                            : "dom_updated",
+                    timestamp: Date.now(),
+                });
+            }, 400);
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ------------------ Page Structure ------------------
+(function () {
+    function emit() {
+        safeSend({
+            type: "page_structure",
+            containers: Array.from(document.body.children)
+                .slice(0, 5)
+                .map((e) => e.id || e.tagName),
+            route: location.pathname,
+            timestamp: Date.now(),
+        });
+    }
+    emit();
+    let last = location.pathname;
+    setInterval(() => {
+        if (location.pathname !== last) {
+            last = location.pathname;
+            emit();
+        }
+    }, 500);
+})();
+
+console.log("CONTENT SCRIPT LOADED — FINAL, PATCHED, STABLE");
