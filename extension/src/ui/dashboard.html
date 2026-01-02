@@ -219,6 +219,26 @@
             transform: translateY(0);
         }
 
+        .btn-optimize {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-optimize:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-optimize:active {
+            transform: translateY(0);
+        }
+
+        .btn-optimize:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         /* Modal Overlay */
         .modal-overlay {
             position: fixed;
@@ -306,6 +326,137 @@
 
         .modal-content button:active {
             transform: translateY(0);
+        }
+
+        /* Optimization Result Modal */
+        .optimization-result {
+            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .optimization-result h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .optimization-section {
+            margin-bottom: 24px;
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+        }
+
+        .optimization-section h4 {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #667eea;
+            margin-bottom: 12px;
+        }
+
+        .optimization-section p {
+            font-size: 14px;
+            color: #2c3e50;
+            line-height: 1.6;
+            margin: 8px 0;
+        }
+
+        .steps-list {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+
+        .steps-list li {
+            counter-increment: step-counter;
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .steps-list li::before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .removed-steps {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .removed-steps h4 {
+            color: #ff9800;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            transition: width 0.6s ease-out;
+        }
+
+        .confidence-text {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .optimization-loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .optimization-loading p {
+            font-size: 16px;
+            color: #2c3e50;
+            margin-top: 16px;
+            font-weight: 500;
         }
 
         /* Empty State */

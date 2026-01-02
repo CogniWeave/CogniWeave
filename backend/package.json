@@ -1,0 +1,22 @@
+{
+  "name": "autopattern-backend",
+  "version": "1.0.0",
+  "description": "AI-powered workflow optimization backend",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["automation", "workflows", "ai", "optimization"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "@google/generative-ai": "^0.1.3",
+    "axios": "^1.6.2"
+  }
+}
