@@ -1,187 +1,535 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Task Mining Dashboard</title>
+    <meta charset="UTF-8">
+    <title>AutoPattern Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            background: #121212;
-            font-family: Arial, sans-serif;
-            color: white;
+            box-sizing: border-box;
         }
 
-        #header {
-            padding: 16px;
-            background: #1f1f1f;
-            font-size: 24px;
-            font-weight: bold;
-            border-bottom: 1px solid #333;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e8e8e8;
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
-        #export-controls {
-            display: flex;
-            gap: 10px;
-        }
-
-        #export-controls button {
-            padding: 8px 16px;
-            background: #0d7377;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        #export-controls button:hover {
-            background: #0f9b8e;
-        }
-
-        #stats {
-            padding: 16px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            display: flex;
-            gap: 30px;
-        }
-
-        .stat-item {
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background: rgba(255, 255, 255, 0.02);
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 24px 16px;
             display: flex;
             flex-direction: column;
         }
 
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 8px;
+            margin-bottom: 32px;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .brand-name {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            color: #9ca3af;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #e8e8e8;
+        }
+
+        .nav-item.active {
+            background: rgba(102, 126, 234, 0.15);
+            color: #a5b4fc;
+        }
+
+        .nav-icon {
+            font-size: 18px;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            width: 280px;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #e8e8e8;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: #6b7280;
+        }
+
+        .search-icon {
+            color: #6b7280;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            padding: 20px 32px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px 24px;
+            min-width: 160px;
+        }
+
         .stat-label {
-            font-size: 12px;
-            color: #888;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
         }
 
         .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #0d7377;
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #a855f7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        #container {
-            display: flex;
-            height: calc(100vh - 140px);
-        }
-
-        #sidebar {
-            width: 300px;
-            background: #181818;
-            border-right: 1px solid #333;
-            overflow-y: auto;
-        }
-
-        #content {
+        /* Workflows Grid */
+        .content {
             flex: 1;
-            padding: 20px;
+            padding: 24px 32px;
             overflow-y: auto;
         }
 
-        .workflow-item {
-            padding: 12px;
-            margin: 10px;
-            background: #222;
+        .workflows-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .workflow-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .workflow-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .workflow-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .workflow-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .workflow-name {
+            font-size: 16px;
+            font-weight: 600;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        .event-badge {
+            padding: 4px 10px;
+            background: rgba(102, 126, 234, 0.2);
+            color: #a5b4fc;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .workflow-meta {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        .workflow-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
             border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
             cursor: pointer;
-            border: 1px solid #333;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
-        .workflow-item:hover {
-            background: #333;
+        .btn-view {
+            background: rgba(102, 126, 234, 0.2);
+            color: #a5b4fc;
         }
 
-        .workflow-item.filtered {
-            background: #1a3a1a;
-            border-color: #2d5a2d;
+        .btn-view:hover {
+            background: rgba(102, 126, 234, 0.3);
         }
 
-        .event {
-            padding: 10px;
-            margin: 10px 0;
-            background: #181818;
+        .btn-automate {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn-automate:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            flex: 0;
+            padding: 10px 14px;
+        }
+
+        .btn-delete:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 28px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-content h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+
+        .modal-content pre {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #9ca3af;
+        }
+
+        .modal-content button {
+            padding: 12px 24px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .modal-content button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(102, 126, 234, 0.2);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .optimization-loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .optimization-loading p {
+            color: #9ca3af;
+            font-size: 14px;
+        }
+
+        .optimization-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid #667eea;
             border-radius: 8px;
-            border: 1px solid #333;
+            padding: 16px;
+            margin-bottom: 16px;
         }
 
-        .event.filtered {
-            background: #1a2a1a;
-            border-color: #2d4a2d;
+        .optimization-section h4 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #a5b4fc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
         }
 
-        .filter-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #2d5a2d;
-            border-radius: 3px;
-            font-size: 10px;
-            margin-left: 8px;
+        .optimization-section p {
+            font-size: 14px;
+            color: #d1d5db;
+            line-height: 1.6;
         }
 
-        .combined-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #5a4d2d;
-            border-radius: 3px;
-            font-size: 10px;
-            margin-left: 8px;
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #6b7280;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(102, 126, 234, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(102, 126, 234, 0.5);
         }
     </style>
 </head>
 
 <body>
-    <div id="header">
-        <span>Task Mining Dashboard</span>
-        <div id="export-controls">
-            <button id="export-csv">Export Events CSV</button>
-            <button id="export-workflows-csv">Export Workflows CSV</button>
-            <button id="export-summary">Export Summary CSV</button>
-
-            <!-- ⭐ New Full Dataset Button -->
-            <button id="export-full-db">Export Full DB CSV</button>
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">⚡</div>
+            <span class="brand-name">AutoPattern</span>
         </div>
 
-    </div>
+        <nav class="nav">
+            <div class="nav-item active">
+                <span class="nav-icon">📋</span>
+                Workflows
+            </div>
+            <div class="nav-item">
+                <span class="nav-icon">🤖</span>
+                Automations
+            </div>
+            <div class="nav-item">
+                <span class="nav-icon">⚙️</span>
+                Settings
+            </div>
+        </nav>
+    </aside>
 
-    <div id="stats">
-        <div class="stat-item">
-            <span class="stat-label">Total Events</span>
-            <span class="stat-value" id="stat-total">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Workflows</span>
-            <span class="stat-value" id="stat-workflows">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Filtered Events</span>
-            <span class="stat-value" id="stat-filtered">0</span>
-        </div>
-        <div class="stat-item">
-            <span class="stat-label">Event Types</span>
-            <span class="stat-value" id="stat-types">0</span>
-        </div>
-    </div>
+    <main class="main">
+        <header class="header">
+            <h1 class="header-title">Workflows</h1>
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-input" placeholder="Search workflows...">
+            </div>
+        </header>
 
-    <div id="container">
-        <!-- LEFT: Workflows -->
-        <div id="sidebar">
-            <h3 style="padding-left:10px;">Workflows</h3>
-            <div id="workflow-list"></div>
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-label">Total Workflows</div>
+                <div class="stat-value" id="stat-workflows">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Events</div>
+                <div class="stat-value" id="stat-events">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Automations Run</div>
+                <div class="stat-value" id="stat-automations">0</div>
+            </div>
         </div>
 
-        <!-- RIGHT: Selected Workflow Details -->
-        <div id="content">
-            <h2 id="workflow-title">Select a workflow</h2>
-            <div id="workflow-events"></div>
+        <div class="content">
+            <div class="workflows-grid" id="workflows-list"></div>
         </div>
-    </div>
+    </main>
 
-    <script src="../utils/csvExporter.js"></script>
     <script src="dashboard.js"></script>
 </body>
+
 </html>

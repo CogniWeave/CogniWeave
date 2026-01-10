@@ -1,325 +1,240 @@
-// ---------- IndexedDB Connection ----------
-// listen for refresh and debounce reload
-let refreshTimeout;
-chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.action === 'refresh_dashboard') {
-        clearTimeout(refreshTimeout);
-        refreshTimeout = setTimeout(() => {
-            console.log('Dashboard: refreshing due to new events');
-            start();
-        }, 150);
+// dashboard.js - Dashboard Logic
+let workflows = [];
+let filteredWorkflows = [];
+
+// ---------- Init ----------
+document.addEventListener('DOMContentLoaded', () => {
+    loadWorkflows();
+    setupSearch();
+});
+
+chrome.runtime.onMessage.addListener(msg => {
+    if (msg.action === 'refresh_dashboard') {
+        loadWorkflows();
     }
 });
 
-function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open("TaskMiningDB", 5);
-
-        request.onupgradeneeded = (e) => {
-            console.log("Dashboard upgrade needed — stores:", e.target.result.objectStoreNames);
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains('events')) {
-                const store = db.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
-                store.createIndex('event_ts', 'timestamp', { unique: false });
-                store.createIndex('event_type', 'event', { unique: false });
-                store.createIndex('url', 'url', { unique: false });
+// ---------- Search ----------
+function setupSearch() {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (query) {
+                filteredWorkflows = workflows.filter(wf =>
+                    wf.name.toLowerCase().includes(query)
+                );
+            } else {
+                filteredWorkflows = [...workflows];
             }
-        };
-
-        request.onsuccess = (e) => {
-            const db = e.target.result;
-            console.log("Dashboard DB opened — stores:", db.objectStoreNames);
-            resolve(db); 
-        };
-
-        request.onerror = () => reject("DB open failed");
-    });
+            renderWorkflows();
+        });
+    }
 }
 
-// ---------- Load All Events from DB ----------
-async function loadEvents() {
-    const db = await openDB();
-
-    return new Promise((resolve, reject) => {
-        try {
-            const tx = db.transaction("events", "readonly");
-            const store = tx.objectStore("events");
-
-            const req = store.getAll();
-
-            req.onsuccess = () => {
-                resolve(req.result.sort((a, b) => a.timestamp - b.timestamp));
-            };
-
-            req.onerror = () => {
-                reject("Failed to read events");
-            };
-
-        } catch (error) {
-            reject(error);
+// ---------- Load ----------
+function loadWorkflows() {
+    chrome.runtime.sendMessage({ action: 'GET_WORKFLOWS' }, res => {
+        if (res?.status === 'ok') {
+            workflows = res.workflows || [];
+            filteredWorkflows = [...workflows];
+            renderWorkflows();
+            updateStats();
         }
     });
 }
 
-// ---------- Group Events Into Workflows ----------
-function groupWorkflows(events) {
-    if (!events.length) return [];
+// ---------- Stats ----------
+function updateStats() {
+    const totalWorkflows = workflows.length;
+    const totalEvents = workflows.reduce((sum, wf) => sum + (wf.events?.length || 0), 0);
 
-    events.sort((a, b) => a.timestamp - b.timestamp);
-
-    const workflows = [];
-    let current = [];
-
-    const GAP = 5 * 60 * 1000; // 5 minutes
-
-    events.forEach((event, idx) => {
-        if (idx === 0) {
-            current.push(event);
-            return;
-        }
-
-        const timeDiff = event.timestamp - events[idx - 1].timestamp;
-
-        if (timeDiff > GAP) {
-            workflows.push(current);
-            current = [event];
-        } else {
-            current.push(event);
-        }
-    });
-
-    if (current.length > 0) workflows.push(current);
-
-    return workflows;
+    document.getElementById('stat-workflows').textContent = totalWorkflows;
+    document.getElementById('stat-events').textContent = totalEvents;
+    document.getElementById('stat-automations').textContent = '0'; // Placeholder
 }
 
-// ---------- Calculate Statistics ----------
-function calculateStats(events, workflows) {
-    const eventTypes = new Set();
-    let filteredCount = 0;
+// ---------- Render ----------
+function renderWorkflows() {
+    const list = document.getElementById('workflows-list');
+    list.innerHTML = '';
 
-    events.forEach(event => {
-        eventTypes.add(event.event);
-        if (event.combinedCount && event.combinedCount > 1) {
-            filteredCount += (event.combinedCount - 1);
-        }
-    });
-
-    return {
-        total: events.length,
-        workflows: workflows.length,
-        filtered: filteredCount,
-        types: eventTypes.size
-    };
-}
-
-// ---------- Update Stats Display ----------
-function updateStats(stats) {
-    document.getElementById('stat-total').textContent = stats.total;
-    document.getElementById('stat-workflows').textContent = stats.workflows;
-    document.getElementById('stat-filtered').textContent = stats.filtered;
-    document.getElementById('stat-types').textContent = stats.types;
-}
-
-// ---------- Render Sidebar List ----------
-function renderWorkflowList(workflows) {
-    const list = document.getElementById("workflow-list");
-    list.innerHTML = "";
-
-    if (!workflows.length) {
-        list.innerHTML = "<p style='padding:10px;color:#aaa;'>No workflows found</p>";
+    if (!filteredWorkflows.length) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>No workflows found</p>
+            </div>
+        `;
         return;
     }
 
-    workflows.forEach((wf, idx) => {
-        const div = document.createElement("div");
-        div.className = "workflow-item";
-        
-        const filteredEvents = wf.filter(e => e.combinedCount && e.combinedCount > 1);
-        const isFiltered = filteredEvents.length > 0;
-        
-        if (isFiltered) {
-            div.classList.add('filtered');
-        }
-        
-        div.innerHTML = `
-            Workflow ${idx + 1} (${wf.length} events)
-            ${isFiltered ? '<span class="filter-badge">Filtered</span>' : ''}
-        `;
+    filteredWorkflows.forEach((w, idx) => {
+        const eventCount = w.events?.length || 0;
+        const date = new Date(w.createdAt).toLocaleDateString();
+        const time = new Date(w.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        div.onclick = () => renderWorkflowDetails(wf, idx + 1);
-
-        list.appendChild(div);
-    });
-}
-
-// ---------- Render Workflow Details ----------
-function renderWorkflowDetails(workflow, number) {
-    document.getElementById("workflow-title").textContent = `Workflow ${number}`;
-    const container = document.getElementById("workflow-events");
-    container.innerHTML = "";
-
-    workflow.forEach((event, idx) => {
-        const div = document.createElement("div");
-        div.className = "event";
-
-        const isCombined = event.combinedCount && event.combinedCount > 1;
-        if (isCombined) div.classList.add('filtered');
-
-        // ---------- Header ----------
-        const header = `
-            <div style="font-weight:bold;">
-                ${idx + 1}. ${event.event}
-                <span style="color:#888;font-size:12px;">
-                    (${new Date(event.timestamp).toLocaleTimeString()})
-                </span>
-                ${isCombined ? `<span class="combined-badge">Combined ${event.combinedCount}x</span>` : ''}
+        const card = document.createElement('div');
+        card.className = 'workflow-card';
+        card.innerHTML = `
+            <div class="workflow-header">
+                <div class="workflow-name">${escapeHtml(w.name)}</div>
+                <div class="event-badge">${eventCount} events</div>
+            </div>
+            <div class="workflow-meta">${date} at ${time}</div>
+            <div class="workflow-actions">
+                <button class="btn btn-view" data-action="view">View</button>
+                <button class="btn btn-automate" data-action="automate">Automate</button>
+                <button class="btn btn-delete" data-action="delete">🗑</button>
             </div>
         `;
 
-        // ---------- Canonical DATA (single source of truth) ----------
-        const canonical = event.canonical || {};
+        // Event delegation for buttons
+        card.querySelector('[data-action="view"]').onclick = () => viewWorkflow(w);
+        card.querySelector('[data-action="automate"]').onclick = () => automateWorkflow(w);
+        card.querySelector('[data-action="delete"]').onclick = () => deleteWorkflow(w);
 
-        const core = `
-            <div style="margin-left:10px;">
-                <div><strong>Canonical ID:</strong> ${canonical.canonical_id || "N/A"}</div>
-                <div><strong>Selector:</strong> ${canonical.selector || "N/A"}</div>
-                <div><strong>XPath:</strong> ${canonical.xpath || "N/A"}</div>
-                <div><strong>Type:</strong> ${canonical.type || "N/A"}</div>
-                <hr>
-                <div><strong>URL:</strong> ${event.url}</div>
-                <div><strong>Title:</strong> ${event.title}</div>
-                <div><strong>ScrollY:</strong> ${event.scrollY}</div>
-                <div><strong>Viewport:</strong> ${JSON.stringify(event.viewport)}</div>
-                <div><strong>Page Fingerprint:</strong> ${event.page_fingerprint}</div>
-            </div>
-        `;
-
-        // ---------- Canonical Only Interaction (removed raw DOM noise) ----------
-        const interaction = `
-            <details style="margin-left:10px;margin-top:5px;">
-                <summary>Canonical Interaction</summary>
-                <pre>${JSON.stringify(canonical, null, 2)}</pre>
-            </details>
-        `;
-
-        div.innerHTML = header + core + interaction;
-        container.appendChild(div);
+        list.appendChild(card);
     });
 }
 
+// ---------- View Workflow ----------
+function viewWorkflow(wf) {
+    const events = wf.events || [];
 
-// ---------- CSV Export Handlers ----------
-const csvExporter = new CSVExporter();
-let currentEvents = [];
-let currentWorkflows = [];
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
 
-window.addEventListener("DOMContentLoaded", () => {
-    const fullExportBtn = document.getElementById("export-full-db");
-    if (fullExportBtn) fullExportBtn.onclick = exportAllIndexedDBToCSV;
-});
+    const content = document.createElement('div');
+    content.className = 'modal-content';
 
+    content.innerHTML = `
+        <h3>${escapeHtml(wf.name)}</h3>
+        <p style="color: #6b7280; margin-bottom: 16px;">${events.length} events recorded</p>
+        <pre>${JSON.stringify(events, null, 2)}</pre>
+        <button>Close</button>
+    `;
 
-document.getElementById('export-csv').onclick = () => {
-    if (currentEvents.length === 0) {
-        alert('No events to export');
-        return;
-    }
-    csvExporter.exportEvents(currentEvents);
-};
+    content.querySelector('button').onclick = () => overlay.remove();
+    overlay.appendChild(content);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-document.getElementById('export-workflows-csv').onclick = () => {
-    if (currentWorkflows.length === 0) {
-        alert('No workflows to export');
-        return;
-    }
-    csvExporter.exportWorkflows(currentWorkflows);
-};
+    document.body.appendChild(overlay);
+}
 
-document.getElementById('export-summary').onclick = () => {
-    if (currentEvents.length === 0) {
-        alert('No events to export');
-        return;
-    }
-    csvExporter.exportSummary(currentEvents);
-};
+// ---------- Automate Workflow ----------
+async function automateWorkflow(wf) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
 
-// ---------- INIT ----------
-async function start() {
+    const content = document.createElement('div');
+    content.className = 'modal-content optimization-loading';
+    content.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p>Starting automation...</p>
+    `;
+
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+
     try {
-        console.log("Loading events...");
-        const events = await loadEvents();
+        const response = await fetch('http://localhost:5001/automate-workflow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                workflowId: wf.id,
+                workflowName: wf.name,
+                events: wf.events
+            })
+        });
 
-        console.log("Loaded events:", events);
-
-        const workflows = groupWorkflows(events);
-
-        console.log("Grouped workflows:", workflows);
-
-        // Store for export
-        currentEvents = events;
-        currentWorkflows = workflows;
-
-        // Calculate and update stats
-        const stats = calculateStats(events, workflows);
-        updateStats(stats);
-
-        renderWorkflowList(workflows);
-    } catch (err) {
-        console.error("Error loading dashboard:", err);
-        const list = document.getElementById("workflow-list");
-        if (list) {
-            list.innerHTML = `<p style='padding:10px;color:red;'>Error loading data: ${err.message || err}</p>`;
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
         }
+
+        const result = await response.json();
+        overlay.remove();
+        displayAutomationResult(wf.name, result);
+
+    } catch (error) {
+        overlay.remove();
+        showError('Automation Failed', error.message, 'Make sure the backend server is running');
     }
 }
 
-start();
+function displayAutomationResult(workflowName, result) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
 
-// ---------- EXPORT FULL INDEXEDDB TO CSV (RAW + CANONICAL) ----------
-async function exportAllIndexedDBToCSV() {
-    const db = await openDB();
-    const tx = db.transaction("events", "readonly");
-    const store = tx.objectStore("events");
-    const req = store.getAll();
+    const content = document.createElement('div');
+    content.className = 'modal-content';
 
-    req.onsuccess = () => {
-        const rows = req.result;
-        if (!rows.length) {
-            alert("No events stored yet.");
-            return;
-        }
+    const statusIcon = result.success ? '✅' : '❌';
+    const statusText = result.success ? 'Automation Completed' : 'Automation Failed';
 
-        // CSV Headers
-        const headers = [
-            "id","timestamp","event","url",
-            "canonical_id","selector","xpath","type"
-        ];
+    content.innerHTML = `
+        <h3>${statusIcon} ${statusText}</h3>
+        <div class="optimization-section">
+            <h4>Generated Task Description</h4>
+            <p>${escapeHtml(result.task_description || 'No description generated')}</p>
+        </div>
+        ${result.error ? `
+            <div class="optimization-section" style="border-color: #ef4444;">
+                <h4 style="color: #f87171;">Error Details</h4>
+                <p>${escapeHtml(result.error)}</p>
+            </div>
+        ` : ''}
+        <button>Close</button>
+    `;
 
-        // Build CSV rows
-        const csvData = rows.map(r => ([
-            r.id ?? "",
-            r.timestamp ?? "",
-            r.event ?? "",
-            r.url ?? "",
-            r?.canonical?.canonical_id ?? "",
-            r?.canonical?.selector ?? "",
-            r?.canonical?.xpath ?? "",
-            r?.canonical?.type ?? ""
-        ].map(String).join(",")));
+    content.querySelector('button').onclick = () => overlay.remove();
+    overlay.appendChild(content);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
-        const csvText = headers.join(",") + "\n" + csvData.join("\n");
-
-        // Trigger download
-        const blob = new Blob([csvText], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "taskmining_export_full.csv";
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    req.onerror = () => alert("Failed to export DB to CSV");
+    document.body.appendChild(overlay);
 }
 
+// ---------- Delete Workflow ----------
+function deleteWorkflow(wf) {
+    if (!confirm(`Delete "${wf.name}"? This cannot be undone.`)) return;
+
+    chrome.runtime.sendMessage(
+        { action: 'DELETE_WORKFLOW', id: wf.id },
+        (res) => {
+            if (res?.status === 'ok') {
+                loadWorkflows();
+            } else {
+                showError('Delete Failed', 'Could not delete workflow');
+            }
+        }
+    );
+}
+
+// ---------- Error Modal ----------
+function showError(title, message, hint = '') {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const content = document.createElement('div');
+    content.className = 'modal-content';
+    content.innerHTML = `
+        <h3>⚠️ ${title}</h3>
+        <p style="color: #f87171; margin-bottom: 12px;">${escapeHtml(message)}</p>
+        ${hint ? `<p style="color: #6b7280; font-size: 13px;">${escapeHtml(hint)}</p>` : ''}
+        <button style="background: #ef4444;">Close</button>
+    `;
+
+    content.querySelector('button').onclick = () => overlay.remove();
+    overlay.appendChild(content);
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    document.body.appendChild(overlay);
+}
+
+// ---------- Utils ----------
+function escapeHtml(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}

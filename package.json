@@ -1,10 +1,10 @@
 {
-  "name": "cogniweave",
+  "name": "autopattern",
   "version": "1.0.0",
-  "description": "CogniWeave Project",
+  "description": "AutoPattern",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Ganesh, Charan",
   "license": "MIT"
 }
