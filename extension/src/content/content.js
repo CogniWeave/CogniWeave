@@ -1,9 +1,15 @@
 // content.js — Simplified, automation-ready recorder
 
+// Initialize noise reducer (loaded from noiseReduction.js)
+const noiseReducer = new NoiseReducer();
+
 function recordEvent(event) {
+    const processed = noiseReducer.processEvent(event);
+    if (!processed) return; // Filtered out by noise reducer
+
     chrome.runtime.sendMessage({
         action: 'RECORD_EVENT',
-        event
+        event: processed
     });
 }
 
@@ -69,14 +75,17 @@ document.addEventListener('click', e => {
 
 // ---------- INPUT ----------
 document.addEventListener('input', debounce(e => {
+    const isPassword = e.target.type === 'password';
     recordEvent(buildEvent('input', e.target, {
-        length: e.target.value?.length || 0
+        value: isPassword ? '[MASKED]' : (e.target.value || ''),
+        length: e.target.value?.length || 0,
+        fieldName: e.target.name || e.target.id || e.target.placeholder || null
     }));
 }, 300), true);
 
 // ---------- SCROLL ----------
 let lastScroll = window.scrollY;
-window.addEventListener('scroll', debounce(() => {
+const scrollHandler = debounce(() => {
     const delta = Math.abs(window.scrollY - lastScroll);
     if (delta > 120) {
         lastScroll = window.scrollY;
@@ -84,7 +93,8 @@ window.addEventListener('scroll', debounce(() => {
             y: window.scrollY
         }));
     }
-}, 200), { passive: true });
+}, 200);
+window.addEventListener('scroll', scrollHandler, { passive: true });
 
 // ---------- NAVIGATION ----------
 if (!window.__pageVisitRecorded) {
