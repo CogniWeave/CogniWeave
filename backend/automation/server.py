@@ -22,7 +22,7 @@ class AutomationAPIHandler(BaseHTTPRequestHandler):
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
@@ -31,9 +31,16 @@ class AutomationAPIHandler(BaseHTTPRequestHandler):
         """Handle CORS preflight requests."""
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
+    
+    def do_GET(self):
+        """Handle GET requests."""
+        if self.path == '/health':
+            self._send_json_response(200, {'status': 'ok', 'service': 'autopattern'})
+        else:
+            self._send_json_response(404, {'error': 'Not found'})
     
     def do_POST(self):
         """Handle POST requests."""
@@ -68,12 +75,23 @@ class AutomationAPIHandler(BaseHTTPRequestHandler):
             # Convert events to WorkflowEvent objects
             events = []
             for e in events_data:
+                # Map extension format (automation/raw) to backend format (data)
+                automation = e.get('automation', {})
+                raw = e.get('raw', {})
+                mapped_data = {
+                    'element_type': automation.get('tag', 'element'),
+                    'text': raw.get('text', ''),
+                    'value': raw.get('value', ''),
+                    'selector': automation.get('selector'),
+                    'xpath': automation.get('xpath'),
+                    'field_name': raw.get('fieldName') or automation.get('selector') or automation.get('tag'),
+                }
                 events.append(WorkflowEvent(
                     event_type=e.get('event', 'unknown'),
                     timestamp=e.get('timestamp', 0),
                     url=e.get('url', ''),
                     title=e.get('title', ''),
-                    data=e.get('data', {}),
+                    data=mapped_data,
                 ))
             
             workflow = Workflow(workflow_id=str(workflow_id), events=events)
@@ -126,12 +144,23 @@ class AutomationAPIHandler(BaseHTTPRequestHandler):
         try:
             events = []
             for e in events_data:
+                # Map extension format (automation/raw) to backend format (data)
+                automation = e.get('automation', {})
+                raw = e.get('raw', {})
+                mapped_data = {
+                    'element_type': automation.get('tag', 'element'),
+                    'text': raw.get('text', ''),
+                    'value': raw.get('value', ''),
+                    'selector': automation.get('selector'),
+                    'xpath': automation.get('xpath'),
+                    'field_name': raw.get('fieldName') or automation.get('selector') or automation.get('tag'),
+                }
                 events.append(WorkflowEvent(
                     event_type=e.get('event', 'unknown'),
                     timestamp=e.get('timestamp', 0),
                     url=e.get('url', ''),
                     title=e.get('title', ''),
-                    data=e.get('data', {}),
+                    data=mapped_data,
                 ))
             
             workflow = Workflow(workflow_id=str(workflow_id), events=events)

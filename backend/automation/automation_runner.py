@@ -32,7 +32,8 @@ class AutomationRunner:
             dict with execution results including history and status.
         """
         try:
-            from browser_use import Agent, Browser, ChatOpenAI
+            from browser_use import Agent, Browser
+            from langchain_openai import ChatOpenAI
         except ImportError:
             raise ImportError(
                 "browser-use is not installed. Run: pip install browser-use"
