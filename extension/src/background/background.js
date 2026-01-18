@@ -45,8 +45,8 @@ function startRecording(workflowName) {
     recordingState.workflowName = workflowName || `Workflow ${new Date().toLocaleString()}`;
     recordingState.startTime = Date.now();
 
-    // Flush buffered events
-    recordingState.currentWorkflow = [...pendingEvents];
+    // Clear all previous events for a fresh start
+    recordingState.currentWorkflow = [];
     pendingEvents = [];
 
     console.log('Recording started');

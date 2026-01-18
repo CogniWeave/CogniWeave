@@ -31,30 +31,46 @@ class AutomationRunner:
         Returns:
             dict with execution results including history and status.
         """
-        # Import Browser to configure it
+        # Import browser-use components
         try:
-            from browser_use import Agent, ChatOpenAI, Browser
+            from browser_use import Agent, Browser, ChatGoogle
         except ImportError:
             raise ImportError(
                 "browser-use is not installed. Run: pip install browser-use"
             )
         
-        # Set up environment for OpenAI-compatible endpoint (GitHub Models)
-        # ChatOpenAI from browser_use reads from OPENAI_API_KEY and OPENAI_BASE_URL
-        os.environ["OPENAI_API_KEY"] = config.github_pat
-        os.environ["OPENAI_BASE_URL"] = "https://models.github.ai/inference"
+        # Initialize Gemini LLM using browser-use's ChatGoogle
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is not set. Get one at https://aistudio.google.com/app/apikey")
         
-        # Initialize LLM using browser-use's ChatOpenAI wrapper
-        llm = ChatOpenAI(model=self.llm_model)
+        # Set environment variable for ChatGoogle
+        os.environ["GOOGLE_API_KEY"] = api_key
         
-        # Initialize browser (simplified)
+        # Initialize main LLM
+        llm = ChatGoogle(model=self.llm_model)
+        
+        # Use gemini-flash-latest for page extraction
+        page_extraction_llm = ChatGoogle(model="gemini-flash-latest")
+        
+        # Initialize browser
         browser = Browser()
         
-        # Create and run agent
+        # Create and run agent with token optimization settings
         agent = Agent(
             task=task_description,
             llm=llm,
             browser=browser,
+            # Vision mode sends screenshots instead of full DOM - more efficient!
+            use_vision=True,  
+            # Low detail reduces screenshot token usage
+            vision_detail_level="low",
+            # Use smaller model for page extraction
+            page_extraction_llm=page_extraction_llm,
+            # Limit actions per step to reduce context accumulation
+            max_actions_per_step=3,
+            # Limit retries to avoid excessive API calls
+            max_failures=2,
         )
         
         try:

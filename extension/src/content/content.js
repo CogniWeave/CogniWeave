@@ -7,10 +7,21 @@ function recordEvent(event) {
     const processed = noiseReducer.processEvent(event);
     if (!processed) return; // Filtered out by noise reducer
 
-    chrome.runtime.sendMessage({
-        action: 'RECORD_EVENT',
-        event: processed
-    });
+    try {
+        chrome.runtime.sendMessage({
+            action: 'RECORD_EVENT',
+            event: processed
+        }, (response) => {
+            // Check for context invalidation
+            if (chrome.runtime.lastError) {
+                console.warn('AutoPattern: Extension context invalidated. Please reload this page.');
+                return;
+            }
+        });
+    } catch (error) {
+        // Extension was reloaded - silently fail
+        console.warn('AutoPattern: Extension context lost. Please reload this page.');
+    }
 }
 
 // ---------- Helpers ----------

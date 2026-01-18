@@ -1,10 +1,12 @@
 """
 LLM Client module.
-Uses GitHub Models API to convert workflow events into natural language task descriptions.
+Uses Google Gemini to convert workflow events into natural language task descriptions.
 """
 
-import requests
+import os
 from typing import Optional
+from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from .config import config
 from .workflow_loader import Workflow
@@ -26,27 +28,24 @@ Just the task description, nothing else. No explanations or preamble."""
 
 
 class LLMClient:
-    """Client for GitHub Models API to generate task descriptions."""
+    """Client for generating task descriptions using Gemini."""
     
     def __init__(
         self,
-        github_pat: Optional[str] = None,
         model: Optional[str] = None,
-        endpoint: Optional[str] = None,
     ):
-        self.github_pat = github_pat or config.github_pat
         self.model = model or config.llm_model
-        self.endpoint = endpoint or config.github_models_endpoint
         
-        if not self.github_pat:
-            raise ValueError(
-                "GitHub PAT is required. Set GITHUB_PAT environment variable or pass github_pat parameter."
-            )
+        # Initialize Gemini
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY is required. Get one at https://aistudio.google.com/app/apikey")
+        
+        self.llm = ChatGoogleGenerativeAI(model=self.model, google_api_key=api_key)
     
     def generate_task_description(self, workflow: Workflow) -> str:
         """Generate a natural language task description from a workflow."""
         
-        # Build the user prompt from workflow summary
         user_prompt = f"""Here is a recorded browser workflow:
 
 Starting URL: {workflow.start_url}
@@ -56,45 +55,8 @@ Actions performed:
 
 Generate a task description for an AI browser agent to replicate this workflow."""
         
-        # Make API request
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {self.github_pat}",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-        }
-        
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.3,  # Lower temperature for more consistent output
-            "max_tokens": 500,
-        }
-        
-        response = requests.post(
-            self.endpoint,
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-        
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"GitHub Models API error: {response.status_code} - {response.text}"
-            )
-        
-        result = response.json()
-        
-        # Extract the generated text
-        choices = result.get("choices", [])
-        if not choices:
-            raise RuntimeError("No response generated from LLM")
-        
-        return choices[0]["message"]["content"].strip()
-    
+        return self._generate(user_prompt)
+
     def generate_from_summary(self, summary: str, start_url: str = "") -> str:
         """Generate a task description from a plain text summary."""
         
@@ -107,38 +69,23 @@ Actions performed:
 
 Generate a task description for an AI browser agent to replicate this workflow."""
         
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {self.github_pat}",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-        }
+        return self._generate(user_prompt)
+
+    def _generate(self, prompt: str) -> str:
+        """Internal generation logic using Gemini."""
         
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            "temperature": 0.3,
-            "max_tokens": 500,
-        }
-        
-        response = requests.post(
-            self.endpoint,
-            headers=headers,
-            json=payload,
-            timeout=30,
-        )
-        
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"GitHub Models API error: {response.status_code} - {response.text}"
-            )
-        
-        result = response.json()
-        choices = result.get("choices", [])
-        if not choices:
-            raise RuntimeError("No response generated from LLM")
-        
-        return choices[0]["message"]["content"].strip()
+        try:
+            response = self.llm.invoke([
+                SystemMessage(content=SYSTEM_PROMPT),
+                HumanMessage(content=prompt)
+            ])
+            content = response.content
+            if isinstance(content, list):
+                content = " ".join([str(c) for c in content])
+            return str(content).strip()
+        except Exception as e:
+            # If generation fails, return a safe fallback
+            print(f"⚠️ Gemini generation failed: {e}")
+            print(f"🔄 Falling back to raw workflow summary")
+            # Extract a simple description from the prompt
+            return f"Perform the task based on: {prompt[:200]}..."

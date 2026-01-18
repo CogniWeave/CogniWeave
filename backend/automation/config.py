@@ -17,10 +17,9 @@ load_dotenv(dotenv_path=env_path)
 class Config:
     """Configuration for the automation pipeline."""
     
-    # GitHub Models API
-    github_pat: str = field(default_factory=lambda: os.getenv("GITHUB_PAT", ""))
-    github_models_endpoint: str = "https://models.github.ai/inference/chat/completions"
-    llm_model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "openai/gpt-4o"))
+    # Google Gemini API
+    google_api_key: str = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY", ""))
+    llm_model: str = field(default_factory=lambda: os.getenv("LLM_MODEL", "gemini-flash-latest"))
     
     # Browser-use settings
     headless: bool = field(default_factory=lambda: os.getenv("HEADLESS", "false").lower() == "true")
@@ -30,10 +29,10 @@ class Config:
     
     def validate(self) -> None:
         """Validate required configuration."""
-        if not self.github_pat:
+        if not self.google_api_key:
             raise ValueError(
-                "GITHUB_PAT environment variable is required. "
-                "Generate a PAT with 'models' scope at https://github.com/settings/tokens"
+                "GOOGLE_API_KEY environment variable is required. "
+                "Get one at https://aistudio.google.com/app/apikey"
             )
 
 
