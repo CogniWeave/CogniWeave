@@ -1,429 +1,122 @@
-// content.js - Advanced Task Mining + Noise Reduction
-// ---------------------------------------------------------
+// content.js — Simplified, automation-ready recorder
 
-const CAPTURE_INPUT_VALUE = false;
-const CAPTURE_INPUT_HASH = true;
-
-// Import noise reducer
+// Initialize noise reducer (loaded from noiseReduction.js)
 const noiseReducer = new NoiseReducer();
 
-// ------------------ Safe Send ------------------
-function safeSend(msg) {
-    // Apply noise reduction before sending
-    const filtered = noiseReducer.processEvent(msg);
-    
-    if (!filtered) {
-        return; // Event was filtered out
-    }
-    
+function recordEvent(event) {
+    const processed = noiseReducer.processEvent(event);
+    if (!processed) return; // Filtered out by noise reducer
+
     try {
-        chrome.runtime.sendMessage(filtered, () => {
-            if (chrome.runtime.lastError) {}
-        });
-    } catch (e) {}
-}
-
-// ------------------ Helpers ------------------
-function debounce(func, wait) {
-    let timeout;
-    return function (...args) {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), wait);
-    };
-}
-
-function getCssSelector(el) {
-    if (!el) return null;
-    if (el.id) return `#${el.id}`;
-    const parts = [];
-    while (el && el.nodeType === 1 && el.tagName.toLowerCase() !== "html") {
-        let part = el.tagName.toLowerCase();
-        if (el.className) {
-            const cls = String(el.className).trim().split(/\s+/)[0];
-            if (cls) part += `.${cls}`;
-        }
-        const parent = el.parentNode;
-        if (parent) {
-            const siblings = Array.from(parent.children).filter(
-                (e) => e.tagName === el.tagName
-            );
-            if (siblings.length > 1) {
-                const idx = Array.from(parent.children).indexOf(el) + 1;
-                part += `:nth-child(${idx})`;
+        chrome.runtime.sendMessage({
+            action: 'RECORD_EVENT',
+            event: processed
+        }, (response) => {
+            // Check for context invalidation
+            if (chrome.runtime.lastError) {
+                console.warn('AutoPattern: Extension context invalidated. Please reload this page.');
+                return;
             }
-        }
-        parts.unshift(part);
-        el = el.parentNode;
+        });
+    } catch (error) {
+        // Extension was reloaded - silently fail
+        console.warn('AutoPattern: Extension context lost. Please reload this page.');
     }
-    return parts.length ? parts.join(" > ") : null;
+}
+
+// ---------- Helpers ----------
+function debounce(fn, delay) {
+    let t;
+    return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), delay);
+    };
 }
 
 function getXPath(el) {
     if (!el) return null;
-    let xpath = "";
-    for (; el && el.nodeType === 1; el = el.parentNode) {
+    let path = '';
+    while (el && el.nodeType === 1) {
         let idx = 1;
-        for (let sib = el.previousSibling; sib; sib = sib.previousSibling) {
+        let sib = el.previousSibling;
+        while (sib) {
             if (sib.nodeType === 1 && sib.nodeName === el.nodeName) idx++;
+            sib = sib.previousSibling;
         }
-        xpath = "/" + el.nodeName.toLowerCase() + "[" + idx + "]" + xpath;
+        path = `/${el.nodeName.toLowerCase()}[${idx}]` + path;
+        el = el.parentNode;
     }
-    return xpath || null;
+    return path;
 }
 
-function shortText(s, n = 120) {
-    if (!s) return "";
-    let t = String(s).trim();
-    return t.length > n ? t.slice(0, n) + "…" : t;
-}
-
-// ------------------ SHA-256 hashing ------------------
-async function sha256Hex(str) {
-    const enc = new TextEncoder();
-    const data = enc.encode(str);
-    const hash = await crypto.subtle.digest("SHA-256", data);
-    const arr = Array.from(new Uint8Array(hash));
-    return arr.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ------------------ DOM-TREE CAPTURE ------------------
-function getDomContext(el) {
-    if (!el) return {};
-
-    const parent = el.parentElement
-        ? {
-              tag: el.parentElement.tagName,
-              id: el.parentElement.id,
-              classes: el.parentElement.className,
-          }
-        : null;
-
-    const siblings = el.parentElement
-        ? Array.from(el.parentElement.children)
-              .slice(0, 7)
-              .map((e) => ({
-                  tag: e.tagName,
-                  id: e.id,
-                  classes: e.className,
-                  text: shortText(e.innerText),
-              }))
-        : [];
-
-    const ancestors = [];
-    let p = el.parentElement;
-    while (p && p.tagName !== "HTML") {
-        ancestors.push({
-            tag: p.tagName,
-            id: p.id,
-            classes: p.className,
-        });
-        p = p.parentElement;
+function getSelector(el) {
+    if (!el) return null;
+    if (el.id) return `#${el.id}`;
+    if (el.getAttribute && el.getAttribute('data-testid')) {
+        return `[data-testid="${el.getAttribute('data-testid')}"]`;
     }
-
-    return { parent, siblings, ancestors };
+    return null;
 }
 
-// ------------------ Semantic Classification ------------------
-function classifyElement(el, meta) {
-    const text = (meta.text || "").toLowerCase();
-    const id = (meta.id || "").toLowerCase();
-    const cls = String(meta.classes || "").toLowerCase();
-    const ph = (el.placeholder || "").toLowerCase();
-
-    if (text.includes("login") || id.includes("login")) return "login_button";
-    if (text.includes("submit") || id.includes("submit")) return "submit_button";
-
-    if (meta.tag === "INPUT") {
-        if ((el.type || "").toLowerCase() === "password") return "password_field";
-        if ((el.type || "").toLowerCase() === "email") return "email_field";
-        if (ph.includes("search") || id.includes("search")) return "search_box";
-    }
-
-    if (meta.tag === "A") return "link";
-    if (cls.includes("btn") || cls.includes("button")) return "button";
-
-    return "generic_element";
-}
-
-// ------------------ Build Event ------------------
-async function buildEventObject(type, extra = {}) {
+// ---------- Event Builder ----------
+function buildEvent(type, el, extra = {}) {
     return {
         event: type,
         timestamp: Date.now(),
         url: location.href,
         title: document.title,
-        viewport: { width: window.innerWidth, height: window.innerHeight },
-        scrollY: window.scrollY || window.pageYOffset || 0,
-        page_fingerprint: [
-            location.hostname,
-            location.pathname.split("/")[1] || "",
-            document.body.children.length,
-        ].join("|"),
-        ...extra,
-    };
-}
 
-// ------------------ Rich Element Metadata ------------------
-function extractSemanticMetadata(el) {
-    if (!el) return {};
-
-    return {
-        tag: el.tagName,
-        id: el.id || null,
-        classes: el.className || null,
-
-        aria_label: el.getAttribute("aria-label"),
-        role: el.getAttribute("role"),
-        name: el.getAttribute("name"),
-        title: el.getAttribute("title"),
-        placeholder: el.getAttribute("placeholder"),
-
-        text: (el.innerText || "").slice(0, 80),
-
-        icon_class: (() => {
-            const icon = el.querySelector("i, svg");
-            if (!icon) return null;
-            if (icon.tagName === "SVG") return "svg-icon";
-            return icon.className || null;
-        })(),
-    };
-}
-
-// ------------------ Meta From Element ------------------
-async function metaFromElement(el) {
-    if (!el) return {};
-
-    const semantic = extractSemanticMetadata(el);
-    const domCtx = getDomContext(el);
-
-    return {
-        ...semantic,
-        css_selector: getCssSelector(el),
-        xpath: getXPath(el),
-        dom_context: domCtx,
-        element_type: classifyElement(el, semantic),
-    };
-}
-
-// ------------------ CLICK ------------------
-document.addEventListener(
-    "click",
-    async (e) => {
-        const el = e.target;
-        const meta = await metaFromElement(el);
-        const rect = el.getBoundingClientRect();
-
-        safeSend(
-            await buildEventObject("click", {
-                data: {
-                    ...meta,
-                    x: e.clientX,
-                    y: e.clientY,
-                    bbox: { x: rect.x, y: rect.y, w: rect.width, h: rect.height },
-                    button: e.button,
-                },
-            })
-        );
-    },
-    true
-);
-
-// ------------------ RIGHT CLICK ------------------
-document.addEventListener(
-    "contextmenu",
-    async (e) => {
-        safeSend(
-            await buildEventObject("right_click", {
-                data: await metaFromElement(e.target),
-            })
-        );
-    },
-    true
-);
-
-// ------------------ DRAG ------------------
-document.addEventListener(
-    "dragstart",
-    async (e) => {
-        safeSend(
-            await buildEventObject("drag_start", {
-                data: await metaFromElement(e.target),
-            })
-        );
-    },
-    true
-);
-
-document.addEventListener(
-    "drop",
-    async (e) => {
-        safeSend(
-            await buildEventObject("drop", {
-                data: await metaFromElement(e.target),
-            })
-        );
-    },
-    true
-);
-
-// ------------------ INPUT ------------------
-function fieldNameForInput(el) {
-    return (
-        el.name ||
-        el.getAttribute("id") ||
-        el.getAttribute("aria-label") ||
-        el.placeholder ||
-        ""
-    );
-}
-
-async function handleInputEvent(e) {
-    const el = e.target;
-    const meta = await metaFromElement(el);
-
-    let inputInfo = { length: (el.value || "").length };
-    if (CAPTURE_INPUT_VALUE && CAPTURE_INPUT_HASH) {
-        inputInfo.hash = await sha256Hex(el.value);
-    }
-
-    safeSend(
-        await buildEventObject("input", {
-            data: {
-                ...meta,
-                field_type: el.type || el.tagName,
-                field_name: fieldNameForInput(el),
-                input: inputInfo,
-            },
-        })
-    );
-}
-
-document.addEventListener("input", debounce(handleInputEvent, 100), true);
-document.addEventListener("change", handleInputEvent, true);
-
-// ------------------ FOCUS ------------------
-document.addEventListener(
-    "focusin",
-    async (e) => {
-        safeSend(
-            await buildEventObject("focus", {
-                data: await metaFromElement(e.target),
-            })
-        );
-    },
-    true
-);
-
-document.addEventListener(
-    "focusout",
-    async (e) => {
-        safeSend(
-            await buildEventObject("blur", {
-                data: await metaFromElement(e.target),
-            })
-        );
-    },
-    true
-);
-
-// ------------------ SCROLL ------------------
-function onScroll() {
-    buildEventObject("scroll", {
-        data: {
-            scrollY: window.scrollY,
-            viewport: { w: window.innerWidth, h: window.innerHeight },
+        automation: {
+            selector: getSelector(el),
+            xpath: getXPath(el),
+            tag: el?.tagName || null,
+            inputType: el?.getAttribute?.('type') || null
         },
-    }).then(safeSend);
+
+        raw: extra
+    };
 }
-window.addEventListener("scroll", debounce(onScroll, 100), { passive: true });
 
-// ------------------ NAVIGATION ------------------
-buildEventObject("page_visit", {
-    data: {
-        url: location.href,
-        title: document.title,
-        referrer: document.referrer || "",
-    },
-}).then(safeSend);
+// ---------- CLICK ----------
+document.addEventListener('click', e => {
+    recordEvent(buildEvent('click', e.target, {
+        text: e.target.innerText?.slice(0, 80) || null
+    }));
+}, true);
 
-window.addEventListener("popstate", () => {
-    buildEventObject("navigation", {
-        data: { url: location.href, title: document.title },
-    }).then(safeSend);
-});
+// ---------- INPUT ----------
+document.addEventListener('input', debounce(e => {
+    const isPassword = e.target.type === 'password';
+    recordEvent(buildEvent('input', e.target, {
+        value: isPassword ? '[MASKED]' : (e.target.value || ''),
+        length: e.target.value?.length || 0,
+        fieldName: e.target.name || e.target.id || e.target.placeholder || null
+    }));
+}, 300), true);
 
-// ------------------ SPA pushState ------------------
+// ---------- SCROLL ----------
+let lastScroll = window.scrollY;
+const scrollHandler = debounce(() => {
+    const delta = Math.abs(window.scrollY - lastScroll);
+    if (delta > 120) {
+        lastScroll = window.scrollY;
+        recordEvent(buildEvent('scroll', null, {
+            y: window.scrollY
+        }));
+    }
+}, 200);
+window.addEventListener('scroll', scrollHandler, { passive: true });
+
+// ---------- NAVIGATION ----------
+if (!window.__pageVisitRecorded) {
+    window.__pageVisitRecorded = true;
+    recordEvent(buildEvent('page_visit', null));
+}
+
 (function () {
-    const _pushState = history.pushState;
+    const push = history.pushState;
     history.pushState = function () {
-        _pushState.apply(history, arguments);
-        buildEventObject("navigation", {
-            data: { url: location.href, title: document.title }
-        }).then(safeSend);
+        push.apply(history, arguments);
+        recordEvent(buildEvent('navigation', null));
     };
 })();
-
-// ------------------ HEARTBEAT ------------------
-setInterval(() => {
-    buildEventObject("heartbeat", { data: { url: location.href } }).then(
-        safeSend
-    );
-}, 60 * 1000);
-
-// ------------------ Visibility ------------------
-document.addEventListener("visibilitychange", () => {
-    buildEventObject("visibility_change", {
-        data: { visibility: document.visibilityState }
-    }).then(safeSend);
-});
-
-// ------------------ UI State Observer ------------------
-(function () {
-    let timer = null;
-    const observer = new MutationObserver((muts) => {
-        if (
-            muts.some(
-                (m) =>
-                    m.type === "childList" &&
-                    (m.addedNodes.length > 3 || m.removedNodes.length > 3)
-            )
-        ) {
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                buildEventObject("ui_state_change", {
-                    data: {
-                        hint: document.querySelector('[role="dialog"], .modal')
-                            ? "modal_opened"
-                            : "dom_updated"
-                    }
-                }).then(safeSend);
-            }, 400);
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-})();
-
-// ------------------ Page Structure ------------------
-(function () {
-    function emit() {
-        buildEventObject("page_structure", {
-            data: {
-                containers: Array.from(document.body.children)
-                    .slice(0, 5)
-                    .map((e) => e.id || e.tagName),
-                route: location.pathname
-            }
-        }).then(safeSend);
-    }
-    emit();
-    let last = location.pathname;
-    setInterval(() => {
-        if (location.pathname !== last) {
-            last = location.pathname;
-            emit();
-        }
-    }, 500);
-})();
-
-console.log("CONTENT SCRIPT LOADED — WITH NOISE REDUCTION");

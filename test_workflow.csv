@@ -1,0 +1,10 @@
+workflow_id,event,timestamp,url,title,data.element_type,data.text,data.xpath,data.selector,data.input_type,data.scroll_y
+1,page_visit,1768626815538,https://hi.com/,,,,,,
+1,click,1768626839855,https://hi.com/,Web3 Neobank | Trade, Save & Spend Crypto & Fiat | hi,DIV,"Easy-to-use
+
+Crypto Bank Super-App",/html[1]/body[1]/div[1]/div[1]/section[2]/div[1]/div[1]/div[1],,,
+1,scroll,1768626842847,https://hi.com/,Web3 Neobank | Trade, Save & Spend Crypto & Fiat | hi,,,,,688
+1,click,1768626843501,https://hi.com/,Web3 Neobank | Trade, Save & Spend Crypto & Fiat | hi,IMG,,/html[1]/body[1]/div[1]/div[1]/section[2]/div[1]/div[2]/a[1]/img[1],,,
+1,page_visit,1768626843815,https://apps.apple.com/us/app/hi-buy-earn-send-crypto/id1583215766,,,,,,
+1,click,1768626847206,https://apps.apple.com/us/app/hi-buy-earn-send-crypto/id1583215766,App Store,SPAN,Photo & Video,/html[1]/body[1]/div[1]/div[1]/div[1]/div[1]/nav[1]/div[2]/div[1]/div[2]/ul[1]/li[2]/a[1]/div[1]/span[2],,,
+1,scroll,1768626849747,https://apps.apple.com/us/iphone/grouping/25236,Photo & Video for iPhone - App Store,,,,,2070.28564453125

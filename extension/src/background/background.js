@@ -1,49 +1,32 @@
-//this file is to store recorded activity into log
-
 // background.js (service worker)
+// Manages workflow recording and storage (FIXED)
 
-// ---------- CANONICALIZATION LAYER ----------
-function canonicalizeEvent(meta = {}) {
-    if (!meta) return { canonical_id: "unknown" };
+let recordingState = {
+    isRecording: false,
+    currentWorkflow: [],
+    workflowName: null,
+    startTime: null
+};
 
-    const token =
-        meta.id ||
-        meta.name ||
-        meta.role ||
-        meta.placeholder ||
-        (meta.text ? meta.text.slice(0, 20) : "unknown");
+// Buffer events that arrive before recording starts
+let pendingEvents = [];
 
-    const stable = String(token)
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_|_$/g, "");
-
-    return {
-        canonical_id: `${meta.element_type || "element"}:${stable}`,
-        selector: meta.css_selector?.replace(/:nth-child\(\d+\)/g, ""), // remove unstable nth-child
-        xpath: meta.xpath?.replace(/\[\d+\]/g, ""),                     // remove numeric index
-        type: meta.element_type || "generic",
-    };
-}
-
-
-// --------- IndexedDB helper ----------
 let dbInstance;
+
+// ---------- IndexedDB ----------
 function getDB() {
     return new Promise((resolve, reject) => {
         if (dbInstance) return resolve(dbInstance);
 
-        const request = indexedDB.open('TaskMiningDB', 5); // version 4 to force schema update
+        const request = indexedDB.open('AutomationDB', 1);
 
         request.onupgradeneeded = (e) => {
             const db = e.target.result;
-            if (!db.objectStoreNames.contains('events')) {
-                const store = db.createObjectStore('events', { keyPath: 'id', autoIncrement: true });
-                // useful indexes for queries
-                store.createIndex('event_ts', 'timestamp', { unique: false });
-                store.createIndex('event_type', 'event', { unique: false });
-                store.createIndex('url', 'url', { unique: false });
+            if (!db.objectStoreNames.contains('workflows')) {
+                db.createObjectStore('workflows', {
+                    keyPath: 'id',
+                    autoIncrement: true
+                });
             }
         };
 
@@ -52,40 +35,117 @@ function getDB() {
             resolve(dbInstance);
         };
 
-        request.onerror = (e) => reject(e);
+        request.onerror = () => reject(request.error);
     });
 }
 
-// write + notify
+// ---------- Recording Control ----------
+function startRecording(workflowName) {
+    recordingState.isRecording = true;
+    recordingState.workflowName = workflowName || `Workflow ${new Date().toLocaleString()}`;
+    recordingState.startTime = Date.now();
+
+    // Clear all previous events for a fresh start
+    recordingState.currentWorkflow = [];
+    pendingEvents = [];
+
+    console.log('Recording started');
+}
+
+async function stopRecording() {
+    if (!recordingState.isRecording) return null;
+
+    recordingState.isRecording = false;
+
+    const workflow = {
+        name: recordingState.workflowName,
+        createdAt: recordingState.startTime,
+        events: recordingState.currentWorkflow,
+        eventCount: recordingState.currentWorkflow.length,
+        schema: 'workflow-v1'
+    };
+
+    const db = await getDB();
+    const tx = db.transaction('workflows', 'readwrite');
+    tx.objectStore('workflows').add(workflow);
+
+    recordingState.currentWorkflow = [];
+    recordingState.workflowName = null;
+    recordingState.startTime = null;
+
+    console.log('Workflow saved');
+    return workflow;
+}
+
+// ---------- Messaging ----------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
-        try {
-            const db = await getDB();
-            const tx = db.transaction('events', 'readwrite');
-            const store = tx.objectStore('events');
 
-            // ⭐ ALWAYS attach raw + canonical (even if meta is missing)
-            const meta = msg.data || {};
-            msg.raw = structuredClone(meta);
-            msg.canonical = canonicalizeEvent(meta);
-
-            // ⭐ Fallbacks for missing fields
-            if (!msg.canonical.canonical_id) msg.canonical.canonical_id = "generic:unknown";
-            if (!msg.canonical.type) msg.canonical.type = msg.event || "generic";
-
-            store.add(msg);
-
-            tx.oncomplete = () => {
-                chrome.runtime.sendMessage({ action: 'refresh_dashboard' });
-                sendResponse({ status: 'ok' });
-            };
-
-            tx.onerror = (err) => sendResponse({ status: 'error', error: err.toString() });
-        } catch (err) {
-            sendResponse({ status: 'error', error: err.toString() });
+        if (msg.action === 'GET_RECORDING_STATE') {
+            sendResponse({ isRecording: recordingState.isRecording });
+            return;
         }
+
+        if (msg.action === 'START_RECORDING') {
+            startRecording(msg.workflowName);
+            sendResponse({ status: 'ok' });
+            return;
+        }
+
+        if (msg.action === 'STOP_RECORDING') {
+            const workflow = await stopRecording();
+            chrome.runtime.sendMessage({ action: 'refresh_dashboard' }).catch(() => {});
+            sendResponse({ status: 'ok', workflow });
+            return;
+        }
+
+        if (msg.action === 'RECORD_EVENT') {
+            if (recordingState.isRecording) {
+                recordingState.currentWorkflow.push(msg.event);
+            } else {
+                pendingEvents.push(msg.event);
+            }
+            sendResponse({ status: 'ok' });
+            return;
+        }
+
+        if (msg.action === 'GET_WORKFLOWS') {
+            const db = await getDB();
+            const req = db.transaction('workflows', 'readonly')
+                .objectStore('workflows')
+                .getAll();
+
+            req.onsuccess = () => {
+                sendResponse({ status: 'ok', workflows: req.result });
+            };
+            return true;
+        }
+
+        if (msg.action === 'DELETE_WORKFLOW') {
+            const db = await getDB();
+            const tx = db.transaction('workflows', 'readwrite');
+            tx.objectStore('workflows').delete(msg.id);
+            tx.oncomplete = () => sendResponse({ status: 'ok' });
+            return true;
+        }
+
+        if (msg.action === 'RENAME_WORKFLOW') {
+            const db = await getDB();
+            const store = db.transaction('workflows', 'readwrite').objectStore('workflows');
+            const req = store.get(msg.id);
+
+            req.onsuccess = () => {
+                const wf = req.result;
+                if (wf) {
+                    wf.name = msg.newName;
+                    store.put(wf);
+                    sendResponse({ status: 'ok' });
+                }
+            };
+            return true;
+        }
+
     })();
+
     return true;
 });
-
-
