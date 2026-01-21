@@ -70,6 +70,12 @@ def parse_args():
         action="store_true",
         help="Run browser in headless mode",
     )
+
+    parser.add_argument(
+        "--human-in-loop",
+        action="store_true",
+        help="Enable human-in-the-loop mode (agent can ask for help)",
+    )
     parser.add_argument(
         "--verbose", "-v",
         action="store_true",
@@ -129,8 +135,12 @@ async def main_async():
     # Execute automation
     print(f"\n🚀 Starting browser automation...")
     print(f"   Headless: {args.headless}")
+    print(f"   Human-in-Loop: {args.human_in_loop}")
     
-    runner = AutomationRunner(headless=args.headless)
+    runner = AutomationRunner(
+        headless=args.headless,
+        enable_human_in_loop=args.human_in_loop,
+    )
     result = await runner.run_task(task_description)
     
     if result["success"]:

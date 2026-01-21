@@ -85,7 +85,7 @@ Generate a task description for an AI browser agent to replicate this workflow."
             return str(content).strip()
         except Exception as e:
             # If generation fails, return a safe fallback
-            print(f"⚠️ Gemini generation failed: {e}")
-            print(f"🔄 Falling back to raw workflow summary")
+            print(f"Gemini generation failed: {e}")
+            print(f"Falling back to raw workflow summary")
             # Extract a simple description from the prompt
             return f"Perform the task based on: {prompt[:200]}..."

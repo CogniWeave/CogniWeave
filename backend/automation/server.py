@@ -1,246 +1,278 @@
 """
-Backend API server for the automation pipeline.
-Provides HTTP endpoints for the extension to trigger automation.
+FastAPI server for AutoPattern automation.
+
+Provides REST API and WebSocket endpoints for browser automation.
 """
 
-import json
 import asyncio
-from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional
-from concurrent.futures import ThreadPoolExecutor
-import threading
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 from .config import config
+from .workflow_loader import WorkflowLoader, Workflow, WorkflowEvent
 from .llm_client import LLMClient
 from .automation_runner import AutomationRunner
-from .workflow_loader import Workflow, WorkflowEvent
 
 
-class AutomationAPIHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for automation API."""
+# ============================================================================
+# Pydantic Models
+# ============================================================================
+
+class WorkflowEventModel(BaseModel):
+    """Single workflow event from the extension."""
+    event: str = Field(alias="event_type", default="unknown")
+    timestamp: int = 0
+    url: str = ""
+    title: str = ""
+    data: dict = Field(default_factory=dict)
+
+    class Config:
+        populate_by_name = True
+
+
+class AutomateRequest(BaseModel):
+    """Request to automate a workflow."""
+    workflow_id: str = "1"
+    events: list[WorkflowEventModel]
+    start_url: str = ""
+    headless: bool = False
+    enable_human_in_loop: bool = False
+
+
+class TaskRequest(BaseModel):
+    """Request to run automation from a task description."""
+    task: str
+    headless: bool = False
+    enable_human_in_loop: bool = False
+
+
+class AutomateResponse(BaseModel):
+    """Response from automation endpoint."""
+    success: bool
+    task_description: str = ""
+    message: str = ""
+    error: Optional[str] = None
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str = "ok"
+    version: str = "0.2.0"
+
+
+# ============================================================================
+# WebSocket Manager for Human-in-the-Loop
+# ============================================================================
+
+class HumanInputManager:
+    """Manages WebSocket connections for human-in-the-loop interactions."""
     
-    def _send_json_response(self, status_code: int, data: dict):
-        """Send a JSON response."""
-        self.send_response(status_code)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+        self.pending_questions: dict[str, asyncio.Future] = {}
     
-    def do_OPTIONS(self):
-        """Handle CORS preflight requests."""
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
     
-    def do_GET(self):
-        """Handle GET requests."""
-        if self.path == '/health':
-            self._send_json_response(200, {'status': 'ok', 'service': 'autopattern'})
-        else:
-            self._send_json_response(404, {'error': 'Not found'})
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
     
-    def do_POST(self):
-        """Handle POST requests."""
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length).decode('utf-8')
+    async def ask_human(self, question: str, timeout: float = 300.0) -> str:
+        """Ask a question to connected humans and wait for response."""
+        if not self.active_connections:
+            # Fallback to console input if no WebSocket connections
+            loop = asyncio.get_running_loop()
+            print(f"\n🤔 Agent needs help: {question}")
+            return await loop.run_in_executor(None, input, "> ")
         
-        try:
-            data = json.loads(body) if body else {}
-        except json.JSONDecodeError:
-            self._send_json_response(400, {'error': 'Invalid JSON'})
-            return
+        question_id = str(id(question))
+        future = asyncio.get_event_loop().create_future()
+        self.pending_questions[question_id] = future
         
-        if self.path == '/automate-workflow':
-            self._handle_automate_workflow(data)
-        elif self.path == '/optimize-workflow':
-            self._handle_optimize_workflow(data)
-        elif self.path == '/generate-description':
-            self._handle_generate_description(data)
-        else:
-            self._send_json_response(404, {'error': 'Endpoint not found'})
-    
-    def _handle_automate_workflow(self, data: dict):
-        """Handle workflow automation request."""
-        events_data = data.get('events', [])
-        workflow_id = data.get('workflowId', 'unknown')
-        
-        if not events_data:
-            self._send_json_response(400, {'error': 'No events provided'})
-            return
-        
-        try:
-            # Convert events to WorkflowEvent objects
-            events = []
-            for e in events_data:
-                # Map extension format (automation/raw) to backend format (data)
-                automation = e.get('automation', {})
-                raw = e.get('raw', {})
-                mapped_data = {
-                    'element_type': automation.get('tag', 'element'),
-                    'text': raw.get('text', ''),
-                    'value': raw.get('value', ''),
-                    'selector': automation.get('selector'),
-                    'xpath': automation.get('xpath'),
-                    'field_name': raw.get('fieldName') or automation.get('selector') or automation.get('tag'),
-                }
-                events.append(WorkflowEvent(
-                    event_type=e.get('event', 'unknown'),
-                    timestamp=e.get('timestamp', 0),
-                    url=e.get('url', ''),
-                    title=e.get('title', ''),
-                    data=mapped_data,
-                ))
-            
-            workflow = Workflow(workflow_id=str(workflow_id), events=events)
-            
-            print(f"📥 Received {len(events)} events for workflow {workflow_id}")
-            if events:
-                print(f"🔍 First event type: {events[0].event_type}, data keys: {list(events[0].data.keys())}")
-            
-            # Generate task description
+        # Broadcast question to all connected clients
+        message = {"type": "question", "id": question_id, "question": question}
+        for connection in self.active_connections:
             try:
-                config.validate()
-                llm_client = LLMClient()
-                task_description = llm_client.generate_task_description(workflow)
-            except Exception as e:
-                print(f"⚠️ LLM task generation failed: {e}")
-                print(f"🔄 Falling back to raw workflow summary")
-                task_description = f"Perform the high-level task represented by these actions: {workflow.summary}"
-            
-            # Run automation in a separate thread to avoid event loop conflicts
-            def run_in_thread():
-                """Run async code in a separate thread with its own event loop."""
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                try:
-                    runner = AutomationRunner()
-                    return loop.run_until_complete(runner.run_task(task_description))
-                finally:
-                    loop.close()
-            
-            # Execute in thread pool
-            print(f"\n🎯 Executing automation for workflow: {workflow_id}")
-            print(f"📝 Task description: {task_description}")
-            
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(run_in_thread)
-                result = future.result(timeout=300)  # 5 minute timeout
-            
-            print(f"\n✅ Automation result: Success={result['success']}")
-            if result.get('error'):
-                print(f"❌ Error: {result['error']}")
-            
-            # Convert history to string if it's not JSON serializable
-            history = result.get('history')
-            if history is not None:
-                try:
-                    json.dumps(history)  # Test if serializable
-                except (TypeError, ValueError):
-                    history = str(history)  # Convert to string if not
-            
-            self._send_json_response(200, {
-                'success': result['success'],
-                'task_description': task_description,
-                'error': result.get('error'),
-                'history': history,
-            })
-            
-        except Exception as e:
-            import traceback
-            error_traceback = traceback.format_exc()
-            print(f"❌ Error in automate_workflow: {e}")
-            print(error_traceback)
-            self._send_json_response(500, {
-                'success': False,
-                'error': str(e),
-                'traceback': error_traceback,
-            })
-    
-    def _handle_optimize_workflow(self, data: dict):
-        """Handle workflow optimization request (placeholder)."""
-        # This is already handled by existing code
-        self._send_json_response(200, {
-            'goal': 'Workflow optimization',
-            'originalSteps': [],
-            'optimizedSteps': [],
-            'explanation': 'Optimization endpoint - requires LLM configuration',
-            'confidence': 0,
-        })
-    
-    def _handle_generate_description(self, data: dict):
-        """Generate a task description without running automation."""
-        events_data = data.get('events', [])
-        workflow_id = data.get('workflowId', 'unknown')
-        
-        if not events_data:
-            self._send_json_response(400, {'error': 'No events provided'})
-            return
+                await connection.send_json(message)
+            except Exception:
+                pass
         
         try:
-            events = []
-            for e in events_data:
-                # Map extension format (automation/raw) to backend format (data)
-                automation = e.get('automation', {})
-                raw = e.get('raw', {})
-                mapped_data = {
-                    'element_type': automation.get('tag', 'element'),
-                    'text': raw.get('text', ''),
-                    'value': raw.get('value', ''),
-                    'selector': automation.get('selector'),
-                    'xpath': automation.get('xpath'),
-                    'field_name': raw.get('fieldName') or automation.get('selector') or automation.get('tag'),
-                }
-                events.append(WorkflowEvent(
-                    event_type=e.get('event', 'unknown'),
-                    timestamp=e.get('timestamp', 0),
-                    url=e.get('url', ''),
-                    title=e.get('title', ''),
-                    data=mapped_data,
-                ))
-            
-            workflow = Workflow(workflow_id=str(workflow_id), events=events)
-            
-            config.validate()
-            llm_client = LLMClient()
-            task_description = llm_client.generate_task_description(workflow)
-            
-            self._send_json_response(200, {
-                'success': True,
-                'task_description': task_description,
-            })
-            
-        except Exception as e:
-            self._send_json_response(500, {
-                'success': False,
-                'error': str(e),
-            })
+            # Wait for response with timeout
+            answer = await asyncio.wait_for(future, timeout=timeout)
+            return answer
+        except asyncio.TimeoutError:
+            return "No response received (timeout)"
+        finally:
+            self.pending_questions.pop(question_id, None)
     
-    def log_message(self, format, *args):
-        """Custom log format."""
-        print(f"[API] {self.address_string()} - {format % args}")
+    def receive_answer(self, question_id: str, answer: str):
+        """Receive an answer from a human."""
+        if question_id in self.pending_questions:
+            self.pending_questions[question_id].set_result(answer)
 
 
-def run_server(host: str = 'localhost', port: int = 5001):
-    """Run the API server."""
-    server = HTTPServer((host, port), AutomationAPIHandler)
-    print(f"\n🚀 Automation API server running at http://{host}:{port}")
-    print(f"   Endpoints:")
-    print(f"   - POST /automate-workflow")
-    print(f"   - POST /generate-description")
-    print(f"   - POST /optimize-workflow")
-    print(f"\n   Press Ctrl+C to stop\n")
+# Global manager instance
+human_input_manager = HumanInputManager()
+
+
+# ============================================================================
+# FastAPI App
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    print("🚀 AutoPattern API server starting...")
+    yield
+    print("👋 AutoPattern API server shutting down...")
+
+
+app = FastAPI(
+    title="AutoPattern API",
+    description="Browser automation powered by AI",
+    version="0.2.0",
+    lifespan=lifespan,
+)
+
+# CORS middleware for extension integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow extension access
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+@app.get("/api/health", response_model=HealthResponse)
+async def health_check():
+    """Health check endpoint."""
+    return HealthResponse()
+
+
+@app.post("/api/automate", response_model=AutomateResponse)
+async def automate_workflow(request: AutomateRequest, background_tasks: BackgroundTasks):
+    """
+    Automate a workflow from recorded events.
     
+    Converts workflow events to a task description using LLM,
+    then executes the automation using browser-use.
+    """
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Server stopped")
-        server.shutdown()
+        # Convert request events to Workflow object
+        events = [
+            WorkflowEvent(
+                event_type=e.event,
+                timestamp=e.timestamp,
+                url=e.url,
+                title=e.title,
+                data=e.data,
+            )
+            for e in request.events
+        ]
+        
+        workflow = Workflow(workflow_id=request.workflow_id, events=events)
+        
+        # Override start_url if provided
+        if request.start_url:
+            # Insert a navigation event at the start
+            events.insert(0, WorkflowEvent(
+                event_type="navigation",
+                timestamp=0,
+                url=request.start_url,
+                title="",
+                data={},
+            ))
+        
+        # Generate task description
+        llm_client = LLMClient()
+        task_description = llm_client.generate_task_description(workflow)
+        
+        # Run automation
+        runner = AutomationRunner(
+            headless=request.headless,
+            enable_human_in_loop=request.enable_human_in_loop,
+            human_input_callback=human_input_manager.ask_human if request.enable_human_in_loop else None,
+        )
+        
+        result = await runner.run_task(task_description)
+        
+        return AutomateResponse(
+            success=result["success"],
+            task_description=task_description,
+            message="Automation completed" if result["success"] else "Automation failed",
+            error=result.get("error"),
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-if __name__ == '__main__':
-    run_server()
+@app.post("/api/automate/task", response_model=AutomateResponse)
+async def automate_task(request: TaskRequest):
+    """
+    Run automation directly from a task description.
+    
+    Skips the LLM task generation step and executes the provided task directly.
+    """
+    try:
+        runner = AutomationRunner(
+            headless=request.headless,
+            enable_human_in_loop=request.enable_human_in_loop,
+            human_input_callback=human_input_manager.ask_human if request.enable_human_in_loop else None,
+        )
+        
+        result = await runner.run_task(request.task)
+        
+        return AutomateResponse(
+            success=result["success"],
+            task_description=request.task,
+            message="Automation completed" if result["success"] else "Automation failed",
+            error=result.get("error"),
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.websocket("/ws/automation")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for human-in-the-loop interactions.
+    
+    Connects clients to receive questions from the automation agent
+    and send back human responses.
+    """
+    await human_input_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            
+            if data.get("type") == "answer":
+                question_id = data.get("id")
+                answer = data.get("answer", "")
+                human_input_manager.receive_answer(question_id, answer)
+                
+    except WebSocketDisconnect:
+        human_input_manager.disconnect(websocket)
+
+
+# ============================================================================
+# Server Runner
+# ============================================================================
+
+def run_server(host: str = "0.0.0.0", port: int = 5001):
+    """Run the FastAPI server."""
+    import uvicorn
+    uvicorn.run(app, host=host, port=port)
