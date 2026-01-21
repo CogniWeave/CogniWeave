@@ -28,15 +28,18 @@ Output format:
 Just the task description, nothing else. No explanations or preamble."""
 
 
-WORKFLOW_STEPS_PROMPT = """You are a workflow analyzer. Given a sequence of user actions recorded from a browser session, generate a structured step-by-step plan that describes what the user was doing.
+WORKFLOW_STEPS_PROMPT = """You are a workflow analyzer for browser automation. Given a sequence of user actions recorded from a browser session, generate a structured step-by-step plan optimized for an AI browser automation agent (browser-use).
 
 Your output MUST be valid JSON with this exact structure:
 {
-  "title": "A short, catchy 3-5 word title (e.g., 'Amazon Shoe Search', 'Hi.com Team Exploration')",
-  "description": "A detailed, information-rich goal description that includes specific details like website names, pages visited, buttons clicked, and data entered",
+  "title": "A short, catchy 3-5 word title (e.g., 'Amazon Shoe Search', 'GitHub Login Flow')",
+  "description": "A detailed task description written as instructions for a browser automation agent. Be specific and actionable.",
   "steps": [
     {"id": 1, "label": "Step description with specific details"},
     {"id": 2, "label": "Step description with specific details"}
+  ],
+  "required_inputs": [
+    {"key": "unique_key", "label": "Human-readable label", "type": "text|password|email|code", "field_hint": "original field name/placeholder from recording"}
   ]
 }
 
@@ -44,23 +47,37 @@ Guidelines for title:
 - Keep it very short and memorable (3-5 words maximum)
 - Capture the essence of what was done (e.g., "YouTube Video Search", "Twitter Profile Update")
 - Use title case (capitalize main words)
-- Be specific about the website/action (e.g., "Amazon Product Review" not "Website Visit")
 
 Guidelines for description:
-- Include specific website names and URLs visited (e.g., "Navigate to Amazon.com and search for running shoes")
-- Mention specific buttons, links, or menu items clicked (e.g., "Click the 'About' menu and navigate to 'About hi' page")
-- Include specific pages or sections visited (e.g., "Browse the team page on hi.com")
-- Mention any forms filled, text entered, or important interactions
-- Be detailed but concise - aim for 1-2 sentences that capture the essence with specifics
-- If external sites were visited, mention them
+- Write as DIRECT INSTRUCTIONS for a browser automation agent
+- Start with the URL to navigate to (e.g., "Go to https://example.com")
+- Be specific about what to click, what to type, what to look for
+- Use action verbs: "Navigate to", "Click on", "Enter", "Type", "Select", "Wait for"
+- Include exact text of buttons/links when available
+- For login flows: say "Enter the provided username in the email/username field" and "Enter the provided password in the password field"
+- Reference input placeholders like {{username}}, {{password}}, {{auth_code}} for any user inputs
 
 Guidelines for steps:
-- Each step should be a clear, actionable instruction with specific details
-- Include exact names of links, buttons, or menu items (e.g., "Click on 'Open Banking' link")
-- Combine trivial actions (like multiple clicks on the same element) into logical steps
+- Each step should be a clear, actionable instruction
+- Include exact names of links, buttons, or menu items
 - Use imperative mood (e.g., "Navigate to...", "Click on...", "Enter...")
-- Include specific targets and destinations (e.g., "Navigate to the 'About hi' page on hi.com")
-- Keep step labels descriptive but not overly long
+- For input fields, reference the placeholder (e.g., "Enter {{username}} in the email field")
+
+Guidelines for required_inputs (CRITICAL):
+- Scan ALL events for input/form interactions
+- Detect fields by looking at: field names, input types, placeholders, and entered values
+- Common patterns to detect:
+  * Email/username fields: type="email", name contains "email/user/login", placeholder contains "email/username"
+  * Password fields: type="password", name contains "pass/pwd"
+  * 2FA/OTP fields: name contains "otp/code/2fa/totp/authenticator", usually 6-digit inputs
+  * Phone fields: type="tel", name contains "phone/mobile"
+  * Search fields: type="search", name contains "search/query"
+- EXCLUDE only Google.com search box from required_inputs (use the recorded search term directly)
+- For EACH detected input field, create an entry in required_inputs with:
+  * "key": a unique snake_case identifier (e.g., "login_email", "login_password", "auth_code")
+  * "label": human-readable label (e.g., "Email Address", "Password", "2FA Code")
+  * "type": one of "text", "password", "email", "code" (use "password" for passwords, "code" for OTP/2FA)
+  * "field_hint": the original field name/placeholder from the recording to help identify it
 
 Output ONLY the JSON object, no markdown code blocks, no explanations."""
 
@@ -144,10 +161,12 @@ Generate a task description for an AI browser agent to replicate this workflow."
             start_url: Optional starting URL
             
         Returns:
-            dict with 'description' and 'steps' keys
+            dict with 'title', 'description', 'steps', and 'required_inputs' keys
         """
-        # Format events for the prompt
+        # Format events for the prompt - include ALL details for input field detection
         events_summary = []
+        input_fields_detected = []  # Track input fields for fallback
+        
         for i, event in enumerate(events, 1):
             event_type = event.get('event_type', event.get('event', 'unknown'))
             url = event.get('url', '')
@@ -160,7 +179,6 @@ Generate a task description for an AI browser agent to replicate this workflow."
             if event_type in ['navigation', 'page_visit']:
                 events_summary.append(f"{i}. Navigated to: {url} (Page: {title})")
             elif event_type == 'click':
-                # Try multiple places where click target text might be stored
                 target_text = (
                     raw.get('text') or 
                     data.get('text') or 
@@ -171,9 +189,51 @@ Generate a task description for an AI browser agent to replicate this workflow."
                 tag = automation.get('tag', '')
                 events_summary.append(f"{i}. Clicked on: '{target_text}' ({tag} element) on page: {url}")
             elif event_type == 'input':
-                field = data.get('field', data.get('target', raw.get('field', 'field')))
+                # Extract detailed field information for input detection
+                field_name = (
+                    raw.get('fieldName') or 
+                    data.get('fieldName') or
+                    data.get('field') or 
+                    data.get('target') or 
+                    raw.get('field') or 
+                    automation.get('selector', '') or
+                    'unknown_field'
+                )
+                input_type = automation.get('inputType', data.get('type', raw.get('type', 'text')))
                 value = data.get('value', raw.get('value', '[text entered]'))
-                events_summary.append(f"{i}. Entered '{value}' in field: {field} on page: {url}")
+                value_length = raw.get('length', len(str(value)) if value else 0)
+                
+                # Mask sensitive values in summary but note the field type
+                is_password = input_type == 'password' or 'pass' in field_name.lower()
+                is_email = input_type == 'email' or 'email' in field_name.lower() or '@' in str(value)
+                is_otp = any(x in field_name.lower() for x in ['otp', 'code', '2fa', 'totp', 'auth', 'verify'])
+                
+                display_value = '[MASKED]' if is_password else value
+                
+                # Track this input field for fallback detection
+                input_fields_detected.append({
+                    'field_name': field_name,
+                    'input_type': input_type,
+                    'is_password': is_password,
+                    'is_email': is_email,
+                    'is_otp': is_otp,
+                    'value_length': value_length,
+                    'url': url
+                })
+                
+                field_type_hint = ""
+                if is_password:
+                    field_type_hint = " [PASSWORD FIELD]"
+                elif is_otp:
+                    field_type_hint = " [2FA/OTP CODE FIELD]"
+                elif is_email:
+                    field_type_hint = " [EMAIL FIELD]"
+                
+                events_summary.append(
+                    f"{i}. INPUT{field_type_hint}: Entered '{display_value}' "
+                    f"(length: {value_length}) in field '{field_name}' "
+                    f"(type: {input_type}) on page: {url}"
+                )
             elif event_type == 'scroll':
                 scroll_y = raw.get('y', data.get('y', 0))
                 events_summary.append(f"{i}. Scrolled to position {scroll_y}px on page: {url} ({title})")
@@ -181,7 +241,6 @@ Generate a task description for an AI browser agent to replicate this workflow."
                 key = raw.get('key', data.get('key', 'key'))
                 events_summary.append(f"{i}. Pressed key: {key}")
             else:
-                # Include all available data for unknown events
                 all_data = {**data, **raw}
                 events_summary.append(f"{i}. {event_type} on {url}: {all_data}")
         
@@ -191,10 +250,16 @@ Generate a task description for an AI browser agent to replicate this workflow."
 
 Starting URL: {start_url}
 
-Detailed events:
+Detailed events (pay special attention to INPUT events marked with [PASSWORD FIELD], [EMAIL FIELD], [2FA/OTP CODE FIELD]):
 {events_text}
 
-Analyze these events carefully. Note the specific text of buttons/links clicked, the URLs visited, and page titles. Generate a structured workflow plan with specific details."""
+IMPORTANT: 
+1. Analyze these events carefully and detect ALL input fields that need user values.
+2. For login/authentication flows, make sure to include username/email, password, and any 2FA fields in required_inputs.
+3. Generate a description that uses placeholders like {{username}}, {{password}}, {{auth_code}} for the detected inputs.
+4. The steps should reference these placeholders where values need to be entered.
+
+Generate a structured workflow plan optimized for browser automation."""
 
         try:
             response = self.llm_pro.invoke([
@@ -207,7 +272,6 @@ Analyze these events carefully. Note the specific text of buttons/links clicked,
             
             # Parse the JSON response
             content = str(content).strip()
-            # Remove markdown code blocks if present
             if content.startswith("```json"):
                 content = content[7:]
             if content.startswith("```"):
@@ -225,6 +289,8 @@ Analyze these events carefully. Note the specific text of buttons/links clicked,
                 result["description"] = "Recorded workflow"
             if "steps" not in result:
                 result["steps"] = []
+            if "required_inputs" not in result:
+                result["required_inputs"] = []
             
             # Ensure step IDs are sequential
             for i, step in enumerate(result["steps"], 1):
@@ -232,21 +298,73 @@ Analyze these events carefully. Note the specific text of buttons/links clicked,
                 if "label" not in step:
                     step["label"] = f"Step {i}"
             
+            # Fallback: If no required_inputs detected but we found input fields, add them
+            if not result["required_inputs"] and input_fields_detected:
+                result["required_inputs"] = self._generate_fallback_inputs(input_fields_detected)
+            
             return result
             
         except json.JSONDecodeError as e:
             print(f"Failed to parse workflow steps JSON: {e}")
             print(f"Raw response: {content}")
-            # Return a fallback structure
+            # Return a fallback structure with detected inputs
             return {
                 "title": "Workflow",
                 "description": "Recorded workflow (AI analysis failed)",
-                "steps": [{"id": i+1, "label": line} for i, line in enumerate(events_summary[:10])]
+                "steps": [{"id": i+1, "label": line} for i, line in enumerate(events_summary[:10])],
+                "required_inputs": self._generate_fallback_inputs(input_fields_detected)
             }
         except Exception as e:
             print(f"Workflow steps generation failed: {e}")
             return {
                 "title": "Workflow",
                 "description": "Recorded workflow (AI analysis failed)",
-                "steps": [{"id": i+1, "label": line} for i, line in enumerate(events_summary[:10])]
+                "steps": [{"id": i+1, "label": line} for i, line in enumerate(events_summary[:10])],
+                "required_inputs": self._generate_fallback_inputs(input_fields_detected)
             }
+    
+    def _generate_fallback_inputs(self, input_fields: list[dict]) -> list[dict]:
+        """Generate required_inputs from detected input fields as fallback."""
+        required_inputs = []
+        seen_keys = set()
+        
+        for field in input_fields:
+            field_name = field['field_name'].lower()
+            url = field.get('url', '').lower()
+            
+            # Skip only Google search fields (use recorded value directly)
+            if 'google.com' in url and field.get('input_type') == 'search':
+                continue
+            if 'google' in field_name and 'search' in field_name:
+                continue
+            
+            # Determine the key and label based on field characteristics
+            if field['is_password']:
+                key = 'password'
+                label = 'Password'
+                input_type = 'password'
+            elif field['is_otp']:
+                key = 'auth_code'
+                label = '2FA / Authenticator Code'
+                input_type = 'code'
+            elif field['is_email'] or 'user' in field_name or 'login' in field_name:
+                key = 'username'
+                label = 'Username / Email'
+                input_type = 'email'
+            else:
+                # Generic input field
+                key = field_name.replace(' ', '_').replace('-', '_')[:20]
+                label = field['field_name'].title()
+                input_type = 'text'
+            
+            # Avoid duplicates
+            if key not in seen_keys:
+                seen_keys.add(key)
+                required_inputs.append({
+                    'key': key,
+                    'label': label,
+                    'type': input_type,
+                    'field_hint': field['field_name']
+                })
+        
+        return required_inputs
