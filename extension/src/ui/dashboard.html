@@ -10,6 +10,54 @@
     <!-- Mermaid.js loaded locally for CSP compliance -->
     <script src="../../lib/mermaid.min.js"></script>
     <style>
+        /* ============================================
+           Loom-Inspired Theme for AutoPattern
+           ============================================ */
+        
+        :root {
+            /* Primary Colors */
+            --primary: #625DF5;
+            --primary-hover: #524AD9;
+            --primary-light: #E8E7FE;
+            --primary-dark: #4B47C7;
+            
+            /* Background Colors */
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F9FAFB;
+            --bg-tertiary: #F3F4F6;
+            --bg-sidebar: #FAFAFA;
+            
+            /* Text Colors */
+            --text-primary: #111827;
+            --text-secondary: #6B7280;
+            --text-muted: #9CA3AF;
+            
+            /* Accent Colors */
+            --success: #10B981;
+            --success-light: #D1FAE5;
+            --danger: #EF4444;
+            --danger-light: #FEE2E2;
+            --warning: #F59E0B;
+            --warning-light: #FEF3C7;
+            --info: #3B82F6;
+            --info-light: #DBEAFE;
+            
+            /* Borders & Shadows */
+            --border-color: #E5E7EB;
+            --border-light: #F3F4F6;
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 18px;
+            --radius-full: 9999px;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -18,17 +66,17 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
-            color: #e8e8e8;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 220px;
-            background: rgba(255, 255, 255, 0.02);
-            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            width: 240px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
             padding: 24px 16px;
             display: flex;
             flex-direction: column;
@@ -37,29 +85,27 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 0 8px;
+            gap: 12px;
+            padding: 0 12px;
             margin-bottom: 32px;
         }
 
         .brand-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            border-radius: var(--radius-md);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 20px;
+            box-shadow: var(--shadow-sm);
         }
 
         .brand-name {
             font-size: 20px;
             font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #a855f7 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--text-primary);
         }
 
         .nav {
@@ -73,23 +119,23 @@
             align-items: center;
             gap: 12px;
             padding: 12px 16px;
-            border-radius: 10px;
-            color: #9ca3af;
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
             text-decoration: none;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
             cursor: pointer;
         }
 
         .nav-item:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: #e8e8e8;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
         }
 
         .nav-item.active {
-            background: rgba(102, 126, 234, 0.15);
-            color: #a5b4fc;
+            background: var(--primary-light);
+            color: var(--primary);
         }
 
         .nav-icon {
@@ -102,6 +148,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            background: var(--bg-secondary);
         }
 
         /* Header */
@@ -110,12 +157,14 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .header-title {
             font-size: 24px;
             font-weight: 700;
+            color: var(--text-primary);
         }
 
         .search-box {
@@ -123,50 +172,57 @@
             align-items: center;
             gap: 10px;
             padding: 10px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             width: 280px;
+            transition: all 0.2s ease;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         .search-box input {
             flex: 1;
             background: transparent;
             border: none;
-            color: #e8e8e8;
+            color: var(--text-primary);
             font-size: 14px;
             font-family: inherit;
             outline: none;
         }
 
         .search-box input::placeholder {
-            color: #6b7280;
+            color: var(--text-muted);
         }
 
         .search-icon {
-            color: #6b7280;
+            color: var(--text-muted);
         }
 
         /* Stats Bar */
         .stats-bar {
             display: flex;
-            gap: 24px;
+            gap: 20px;
             padding: 20px 32px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
             padding: 16px 24px;
             min-width: 160px;
         }
 
         .stat-label {
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
-            color: #6b7280;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 6px;
@@ -175,10 +231,7 @@
         .stat-value {
             font-size: 28px;
             font-weight: 700;
-            background: linear-gradient(135deg, #667eea 0%, #a855f7 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--primary);
         }
 
         /* Workflows Grid */
@@ -195,13 +248,14 @@
         }
 
         .workflow-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
             padding: 20px;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
+            box-shadow: var(--shadow-sm);
         }
 
         .workflow-card::before {
@@ -211,16 +265,16 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             transform: scaleX(0);
             transform-origin: left;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s ease;
         }
 
         .workflow-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(102, 126, 234, 0.3);
-            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
         }
 
         .workflow-card:hover::before {
@@ -237,15 +291,16 @@
         .workflow-name {
             font-size: 16px;
             font-weight: 600;
+            color: var(--text-primary);
             word-break: break-word;
             line-height: 1.4;
         }
 
         .event-badge {
             padding: 4px 10px;
-            background: rgba(102, 126, 234, 0.2);
-            color: #a5b4fc;
-            border-radius: 6px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border-radius: var(--radius-sm);
             font-size: 12px;
             font-weight: 600;
             white-space: nowrap;
@@ -253,7 +308,7 @@
 
         .workflow-meta {
             font-size: 13px;
-            color: #6b7280;
+            color: var(--text-muted);
             margin-bottom: 16px;
         }
 
@@ -266,44 +321,47 @@
             flex: 1;
             padding: 10px 12px;
             border: none;
-            border-radius: 8px;
-            font-size: 12px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
             font-weight: 600;
             font-family: inherit;
             cursor: pointer;
-            transition: all 0.2s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
+            transition: all 0.15s ease;
         }
 
         .btn-view {
-            background: rgba(102, 126, 234, 0.2);
-            color: #a5b4fc;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
         }
 
         .btn-view:hover {
-            background: rgba(102, 126, 234, 0.3);
+            background: var(--bg-secondary);
+            color: var(--primary);
+            border-color: var(--primary);
         }
 
         .btn-automate {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            background: var(--primary);
             color: white;
         }
 
         .btn-automate:hover {
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-delete {
-            background: rgba(239, 68, 68, 0.15);
-            color: #f87171;
+            background: var(--danger-light);
+            color: var(--danger);
             flex: 0;
             padding: 10px 14px;
         }
 
         .btn-delete:hover {
-            background: rgba(239, 68, 68, 0.25);
+            background: var(--danger);
+            color: white;
         }
 
         /* Modal */
@@ -313,7 +371,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(17, 24, 39, 0.6);
             backdrop-filter: blur(4px);
             z-index: 1000;
             display: flex;
@@ -327,22 +385,22 @@
             from {
                 opacity: 0;
             }
-
             to {
                 opacity: 1;
             }
         }
 
         .modal-content {
-            background: #1a1a2e;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
             padding: 28px;
             max-width: 600px;
             width: 100%;
             max-height: 80vh;
             overflow-y: auto;
             animation: slideUp 0.3s ease;
+            box-shadow: var(--shadow-xl);
         }
 
         @keyframes slideUp {
@@ -350,7 +408,6 @@
                 transform: translateY(20px);
                 opacity: 0;
             }
-
             to {
                 transform: translateY(0);
                 opacity: 1;
@@ -360,45 +417,47 @@
         .modal-content h3 {
             font-size: 20px;
             font-weight: 700;
+            color: var(--text-primary);
             margin-bottom: 20px;
         }
 
         .modal-content pre {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             padding: 16px;
             overflow-x: auto;
             font-size: 12px;
             line-height: 1.6;
-            color: #9ca3af;
+            color: var(--text-secondary);
         }
 
         .modal-content button {
             padding: 12px 24px;
             margin-top: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 600;
             font-size: 14px;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .modal-content button:hover {
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+            box-shadow: var(--shadow-md);
         }
 
         /* Loading Spinner */
         .loading-spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(102, 126, 234, 0.2);
+            border: 3px solid var(--primary-light);
             border-radius: 50%;
-            border-top-color: #667eea;
+            border-top-color: var(--primary);
             animation: spin 0.8s linear infinite;
             margin: 0 auto 16px;
         }
@@ -415,14 +474,14 @@
         }
 
         .optimization-loading p {
-            color: #9ca3af;
+            color: var(--text-secondary);
             font-size: 14px;
         }
 
         .optimization-section {
-            background: rgba(255, 255, 255, 0.03);
-            border-left: 3px solid #667eea;
-            border-radius: 8px;
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--primary);
+            border-radius: var(--radius-md);
             padding: 16px;
             margin-bottom: 16px;
         }
@@ -430,7 +489,7 @@
         .optimization-section h4 {
             font-size: 12px;
             font-weight: 600;
-            color: #a5b4fc;
+            color: var(--primary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
@@ -438,7 +497,7 @@
 
         .optimization-section p {
             font-size: 14px;
-            color: #d1d5db;
+            color: var(--text-secondary);
             line-height: 1.6;
         }
 
@@ -446,7 +505,7 @@
         .empty-state {
             text-align: center;
             padding: 80px 20px;
-            color: #6b7280;
+            color: var(--text-muted);
         }
 
         .empty-icon {
@@ -469,12 +528,12 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: rgba(102, 126, 234, 0.3);
+            background: var(--border-color);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(102, 126, 234, 0.5);
+            background: var(--text-muted);
         }
 
         /* Workflow Editor Modal */
@@ -508,7 +567,7 @@
         .panel-title {
             font-size: 12px;
             font-weight: 600;
-            color: #a5b4fc;
+            color: var(--primary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 12px;
@@ -518,10 +577,10 @@
         .description-input {
             width: 100%;
             padding: 12px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: #e8e8e8;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
             font-family: inherit;
             font-size: 14px;
             line-height: 1.5;
@@ -532,15 +591,16 @@
 
         .description-input:focus {
             outline: none;
-            border-color: rgba(102, 126, 234, 0.5);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         /* Steps List */
         .steps-list {
             flex: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             padding: 12px;
             overflow-y: auto;
             max-height: 300px;
@@ -551,17 +611,17 @@
             align-items: center;
             gap: 10px;
             padding: 10px 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 8px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             margin-bottom: 8px;
             cursor: grab;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .step-item:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(102, 126, 234, 0.3);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-sm);
         }
 
         .step-item.dragging {
@@ -572,7 +632,7 @@
         .step-number {
             width: 24px;
             height: 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -580,28 +640,29 @@
             font-size: 12px;
             font-weight: 600;
             flex-shrink: 0;
+            color: white;
         }
 
         .step-label {
             flex: 1;
             font-size: 13px;
-            color: #d1d5db;
+            color: var(--text-secondary);
         }
 
         .step-input {
             flex: 1;
-            background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
             padding: 6px 10px;
-            color: #e8e8e8;
+            color: var(--text-primary);
             font-family: inherit;
             font-size: 13px;
         }
 
         .step-input:focus {
             outline: none;
-            border-color: rgba(102, 126, 234, 0.5);
+            border-color: var(--primary);
         }
 
         .step-actions {
@@ -613,52 +674,53 @@
             width: 28px;
             height: 28px;
             border: none;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            color: #9ca3af;
+            border-radius: var(--radius-sm);
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .step-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e8e8e8;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
         }
 
         .step-btn.delete:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
+            background: var(--danger-light);
+            color: var(--danger);
         }
 
         .add-step-btn {
             width: 100%;
             padding: 10px;
             margin-top: 8px;
-            border: 2px dashed rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
             background: transparent;
-            color: #6b7280;
+            color: var(--text-muted);
             font-family: inherit;
             font-size: 13px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .add-step-btn:hover {
-            border-color: rgba(102, 126, 234, 0.3);
-            color: #a5b4fc;
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
         }
 
         /* Flowchart Preview */
         .flowchart-container {
             flex: 1;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             padding: 16px;
             overflow: auto;
             min-height: 350px;
@@ -677,23 +739,23 @@
         .description-status {
             font-size: 11px;
             padding: 4px 8px;
-            border-radius: 4px;
+            border-radius: var(--radius-sm);
             margin-left: 8px;
         }
 
         .description-status.pending {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
+            background: var(--warning-light);
+            color: var(--warning);
         }
 
         .description-status.success {
-            background: rgba(34, 197, 94, 0.2);
-            color: #4ade80;
+            background: var(--success-light);
+            color: var(--success);
         }
 
         .description-status.failed {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
+            background: var(--danger-light);
+            color: var(--danger);
         }
 
         /* Modal Actions */
@@ -706,49 +768,51 @@
 
         .btn-secondary {
             padding: 12px 24px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #9ca3af;
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 600;
             font-size: 14px;
             font-family: inherit;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e8e8e8;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--text-muted);
         }
 
         .btn-primary {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            background: var(--primary);
             border: none;
             color: white;
-            border-radius: 10px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-weight: 600;
             font-size: 14px;
             font-family: inherit;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .btn-primary:hover {
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+            box-shadow: var(--shadow-md);
         }
 
         /* Drag Handle */
         .drag-handle {
             cursor: grab;
-            color: #4b5563;
+            color: var(--text-muted);
             font-size: 14px;
         }
 
         .drag-handle:hover {
-            color: #9ca3af;
+            color: var(--text-secondary);
         }
 
         /* Workflows Table */
@@ -759,29 +823,31 @@
         .workflows-table {
             width: 100%;
             border-collapse: collapse;
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 12px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
             overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
         }
 
         .workflows-table th,
         .workflows-table td {
             padding: 16px 20px;
             text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .workflows-table th {
-            background: rgba(255, 255, 255, 0.03);
+            background: var(--bg-secondary);
             font-size: 11px;
             font-weight: 600;
-            color: #9ca3af;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .workflows-table tr:hover {
-            background: rgba(255, 255, 255, 0.03);
+            background: var(--bg-secondary);
         }
 
         .workflows-table tr:last-child td {
@@ -790,12 +856,12 @@
 
         .table-workflow-name {
             font-weight: 600;
-            color: #e8e8e8;
+            color: var(--text-primary);
         }
 
         .table-workflow-desc {
             font-size: 12px;
-            color: #6b7280;
+            color: var(--text-muted);
             margin-top: 4px;
             max-width: 300px;
             overflow: hidden;
@@ -812,50 +878,56 @@
         .table-btn {
             padding: 8px 14px;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-sm);
             font-size: 12px;
             font-weight: 600;
             font-family: inherit;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .table-btn-view {
-            background: rgba(102, 126, 234, 0.15);
-            color: #a5b4fc;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
         }
 
         .table-btn-view:hover {
-            background: rgba(102, 126, 234, 0.25);
+            background: var(--primary-light);
+            color: var(--primary);
+            border-color: var(--primary);
         }
 
         .table-btn-run {
-            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            background: var(--primary);
             color: white;
         }
 
         .table-btn-run:hover {
+            background: var(--primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+            box-shadow: var(--shadow-md);
         }
 
         .table-btn-edit {
-            background: rgba(245, 158, 11, 0.15);
-            color: #fbbf24;
+            background: var(--warning-light);
+            color: var(--warning);
         }
 
         .table-btn-edit:hover {
-            background: rgba(245, 158, 11, 0.25);
+            background: var(--warning);
+            color: white;
         }
 
         .table-btn-delete {
-            background: rgba(239, 68, 68, 0.1);
-            color: #f87171;
+            background: var(--danger-light);
+            color: var(--danger);
             padding: 8px 10px;
         }
 
         .table-btn-delete:hover {
-            background: rgba(239, 68, 68, 0.2);
+            background: var(--danger);
+            color: white;
         }
 
         /* View Modal with Flowchart */
@@ -871,24 +943,24 @@
 
         .toggle-btn {
             padding: 8px 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
             background: transparent;
-            color: #9ca3af;
-            border-radius: 6px;
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .toggle-btn.active {
-            background: rgba(102, 126, 234, 0.2);
-            border-color: rgba(102, 126, 234, 0.4);
-            color: #a5b4fc;
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         .toggle-btn:hover:not(.active) {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--bg-tertiary);
         }
 
         .view-content {
@@ -896,8 +968,8 @@
         }
 
         .view-flowchart {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
             padding: 20px;
             min-height: 300px;
             display: flex;
@@ -910,9 +982,9 @@
         }
 
         .view-raw {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
             padding: 16px;
             overflow: auto;
             max-height: 400px;
@@ -921,7 +993,7 @@
         .view-raw pre {
             font-size: 12px;
             line-height: 1.6;
-            color: #9ca3af;
+            color: var(--text-secondary);
             margin: 0;
         }
 
@@ -934,23 +1006,24 @@
 
         /* Settings Styles */
         .settings-section {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
             padding: 24px;
             margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
         }
 
         .settings-title {
             font-size: 16px;
             font-weight: 600;
-            color: #e8e8e8;
+            color: var(--text-primary);
             margin-bottom: 8px;
         }
 
         .settings-desc {
             font-size: 13px;
-            color: #9ca3af;
+            color: var(--text-muted);
             margin-bottom: 20px;
         }
 
@@ -968,7 +1041,7 @@
             gap: 10px;
             font-size: 14px;
             font-weight: 500;
-            color: #e8e8e8;
+            color: var(--text-primary);
             margin-bottom: 6px;
             cursor: pointer;
         }
@@ -976,12 +1049,12 @@
         .setting-label input[type="checkbox"] {
             width: 18px;
             height: 18px;
-            accent-color: #667eea;
+            accent-color: var(--primary);
         }
 
         .setting-hint {
             font-size: 12px;
-            color: #6b7280;
+            color: var(--text-muted);
             margin: 4px 0 8px 0;
         }
 
@@ -989,22 +1062,23 @@
             width: 100%;
             max-width: 300px;
             padding: 10px 14px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            color: #e8e8e8;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
             font-size: 14px;
             cursor: pointer;
         }
 
         .setting-select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
         }
 
         .setting-select option {
-            background: #1a1a2e;
-            color: #e8e8e8;
+            background: var(--bg-primary);
+            color: var(--text-primary);
         }
 
         .settings-actions {
@@ -1016,20 +1090,85 @@
 
         .settings-status {
             font-size: 13px;
-            color: #10b981;
+            color: var(--success);
         }
 
         .settings-status.error {
-            color: #ef4444;
+            color: var(--danger);
         }
 
         /* Backend Status */
         .status-dot.connected {
-            background: #10b981 !important;
+            background: var(--success) !important;
         }
 
         .status-dot.disconnected {
-            background: #ef4444 !important;
+            background: var(--danger) !important;
+        }
+
+        /* Lucide Icon Styles */
+        i[data-lucide] {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+        }
+
+        .brand-icon i {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Button icons */
+        .table-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        .table-btn i {
+            width: 10px !important;
+            height: 10px !important;
+        }
+        
+        .table-btn i svg {
+            width: 10px !important;
+            height: 10px !important;
+        }
+
+        .btn-primary,
+        .btn-secondary,
+        .toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .btn-primary i,
+        .btn-secondary i,
+        .toggle-btn i {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Status badge icons */
+        .description-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .description-status i {
+            width: 12px;
+            height: 12px;
         }
     </style>
 </head>
@@ -1037,24 +1176,24 @@
 <body>
     <aside class="sidebar">
         <div class="brand">
-            <div class="brand-icon">⚡</div>
+            <div class="brand-icon"><i data-lucide="zap"></i></div>
             <span class="brand-name">AutoPattern</span>
         </div>
 
         <nav class="nav">
             <div class="nav-item active" data-view="workflows">
-                <span class="nav-icon">📋</span>
+                <i data-lucide="folder" class="nav-icon"></i>
                 Workflows
             </div>
             <div class="nav-item" data-view="settings">
-                <span class="nav-icon">⚙️</span>
+                <i data-lucide="settings" class="nav-icon"></i>
                 Settings
             </div>
         </nav>
         
-        <div class="sidebar-footer" style="margin-top: auto; padding: 16px 8px; border-top: 1px solid rgba(255,255,255,0.06);">
-            <div id="backend-status" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #9ca3af;">
-                <span class="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+        <div class="sidebar-footer" style="margin-top: auto; padding: 16px 12px; border-top: 1px solid var(--border-color);">
+            <div id="backend-status" style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                <span class="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--danger);"></span>
                 <span>Backend: Checking...</span>
             </div>
         </div>
@@ -1066,7 +1205,7 @@
             <header class="header">
                 <h1 class="header-title">Workflows</h1>
                 <div class="search-box">
-                    <span class="search-icon">🔍</span>
+                    <i data-lucide="search" class="search-icon" style="width:16px;height:16px;"></i>
                     <input type="text" id="search-input" placeholder="Search workflows...">
                 </div>
             </header>
@@ -1099,7 +1238,7 @@
             
             <div class="content" style="padding: 24px;">
                 <div class="settings-section">
-                    <h3 class="settings-title">🤖 AI Models</h3>
+                    <h3 class="settings-title"><i data-lucide="brain" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:8px;"></i> AI Models</h3>
                     <p class="settings-desc">Configure which AI models to use for analysis and automation.</p>
                     
                     <div class="setting-row">
@@ -1120,7 +1259,7 @@
                 </div>
                 
                 <div class="settings-section">
-                    <h3 class="settings-title">🖥️ Browser Automation</h3>
+                    <h3 class="settings-title"><i data-lucide="monitor" style="width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:8px;"></i> Browser Automation</h3>
                     <p class="settings-desc">Configure browser behavior during automation.</p>
                     
                     <div class="setting-row">
@@ -1141,13 +1280,14 @@
                 </div>
                 
                 <div class="settings-actions">
-                    <button class="btn-primary" id="save-settings-btn">💾 Save Settings</button>
+                    <button class="btn-primary" id="save-settings-btn"><i data-lucide="save" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> Save Settings</button>
                     <span id="settings-status" class="settings-status"></span>
                 </div>
             </div>
         </div>
     </main>
 
+    <script src="../../lib/lucide.min.js"></script>
     <script src="settings.js"></script>
     <script src="dashboard.js"></script>
 </body>

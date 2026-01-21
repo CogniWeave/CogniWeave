@@ -123,7 +123,7 @@ async function loadSettings() {
     } catch (err) {
         console.error('Failed to load settings:', err);
         if (statusEl) {
-            statusEl.textContent = '⚠️ Could not load settings from backend';
+            statusEl.textContent = 'Could not load settings from backend';
             statusEl.classList.add('error');
         }
     }
@@ -221,7 +221,7 @@ async function saveSettings() {
         currentSettings = data.settings;
         
         if (statusEl) {
-            statusEl.textContent = '✅ Settings saved successfully';
+            statusEl.textContent = 'Settings saved successfully';
             statusEl.classList.remove('error');
             
             // Clear message after 3 seconds
@@ -233,13 +233,14 @@ async function saveSettings() {
     } catch (err) {
         console.error('Failed to save settings:', err);
         if (statusEl) {
-            statusEl.textContent = '❌ Failed to save settings';
+            statusEl.textContent = 'Failed to save settings';
             statusEl.classList.add('error');
         }
     } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.textContent = '💾 Save Settings';
+            saveBtn.innerHTML = '<i data-lucide="save" style="width:16px;height:16px;display:inline-block;vertical-align:middle;margin-right:6px;"></i> Save Settings';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     }
 }

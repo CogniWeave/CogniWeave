@@ -4,6 +4,11 @@ let isRecording = false;
 
 // Initialize UI
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
     const startBtn = document.getElementById('start-recording');
     const stopBtn = document.getElementById('stop-recording');
     const dashboardBtn = document.getElementById('open-dashboard');

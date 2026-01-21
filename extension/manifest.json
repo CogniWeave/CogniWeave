@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AutoPattern",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Record and automate browser workflows with AI",
   "permissions": [
     "tabs",

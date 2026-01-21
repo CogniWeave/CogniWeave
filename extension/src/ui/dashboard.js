@@ -4,8 +4,18 @@ const API_BASE_URL = 'http://localhost:5001';
 let workflows = [];
 let filteredWorkflows = [];
 
+// Helper function to refresh Lucide icons after dynamic content
+function refreshIcons() {
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Lucide icons
+    refreshIcons();
+    
     initMermaid();
     loadWorkflows();
     setupSearch();
@@ -99,10 +109,11 @@ function renderWorkflows() {
     if (!filteredWorkflows.length) {
         list.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">📭</div>
+                <div class="empty-icon"><i data-lucide="inbox" style="width:48px;height:48px;"></i></div>
                 <p>No workflows found</p>
             </div>
         `;
+        refreshIcons();
         return;
     }
 
@@ -117,7 +128,6 @@ function renderWorkflows() {
                 <th>Workflow</th>
                 <th>Events</th>
                 <th>Created</th>
-                <th>Status</th>
                 <th style="text-align: right;">Actions</th>
             </tr>
         </thead>
@@ -137,9 +147,9 @@ function renderWorkflows() {
         if (w.descriptionStatus === 'pending') {
             statusBadge = '<span class="description-status pending">⏳ Analyzing</span>';
         } else if (w.descriptionStatus === 'success') {
-            statusBadge = '<span class="description-status success">✓ AI Ready</span>';
+            statusBadge = '<span class="description-status success"><i data-lucide="check" style="width:12px;height:12px;"></i> AI Ready</span>';
         } else if (w.descriptionStatus === 'failed') {
-            statusBadge = '<span class="description-status failed">⚠ Failed</span>';
+            statusBadge = '<span class="description-status failed"><i data-lucide="alert-triangle" style="width:12px;height:12px;"></i> Failed</span>';
         } else {
             statusBadge = '<span class="description-status" style="color: #6b7280;">—</span>';
         }
@@ -152,14 +162,13 @@ function renderWorkflows() {
             </td>
             <td><span class="event-badge">${eventCount}</span></td>
             <td style="color: #9ca3af; font-size: 13px;">${date}<br>${time}</td>
-            <td>${statusBadge}</td>
             <td>
                 <div class="table-actions">
-                    <button class="table-btn table-btn-view" data-action="view" title="View workflow">👁 View</button>
+                    <button class="table-btn table-btn-view" data-action="view" title="View workflow"><i data-lucide="eye"></i></button>
                     ${w.steps && w.steps.length > 0 ? 
-                        `<button class="table-btn table-btn-edit" data-action="edit" title="Edit workflow">✏️ Edit</button>` : ''}
-                    <button class="table-btn table-btn-run" data-action="run" title="Run automation">▶ Run</button>
-                    <button class="table-btn table-btn-delete" data-action="delete" title="Delete">🗑</button>
+                        `<button class="table-btn table-btn-edit" data-action="edit" title="Edit workflow"><i data-lucide="pencil"></i></button>` : ''}
+                    <button class="table-btn table-btn-run" data-action="run" title="Run automation"><i data-lucide="play"></i> Run</button>
+                    <button class="table-btn table-btn-delete" data-action="delete" title="Delete"><i data-lucide="trash-2"></i></button>
                 </div>
             </td>
         `;
@@ -180,6 +189,9 @@ function renderWorkflows() {
 
         tbody.appendChild(row);
     });
+    
+    // Refresh Lucide icons after dynamic content
+    refreshIcons();
 }
 
 // ---------- View Workflow ----------
@@ -203,10 +215,10 @@ async function viewWorkflow(wf) {
         
         <div class="view-toggle">
             <button class="toggle-btn ${hasFlowchart ? 'active' : ''}" data-view="flowchart" ${!hasFlowchart ? 'disabled' : ''}>
-                📊 Flowchart
+                <i data-lucide="git-branch"></i> Flowchart
             </button>
             <button class="toggle-btn ${!hasFlowchart ? 'active' : ''}" data-view="raw">
-                📝 Raw Events
+                <i data-lucide="file-text"></i> Raw Events
             </button>
         </div>
         
@@ -229,6 +241,9 @@ async function viewWorkflow(wf) {
     overlay.appendChild(content);
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     document.body.appendChild(overlay);
+    
+    // Refresh Lucide icons for dynamic content
+    refreshIcons();
 
     // Setup toggle buttons
     const toggleBtns = content.querySelectorAll('.toggle-btn');
@@ -328,6 +343,7 @@ async function runWorkflowDirectly(wf) {
 
     overlay.appendChild(content);
     document.body.appendChild(overlay);
+    refreshIcons();
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/automate`, {
@@ -369,6 +385,7 @@ async function automateWorkflow(wf) {
 
     overlay.appendChild(content);
     document.body.appendChild(overlay);
+    refreshIcons();
 
     try {
         const response = await fetch(`${API_BASE_URL}/api/automate`, {
@@ -403,7 +420,7 @@ function displayAutomationResult(workflowName, result) {
     const content = document.createElement('div');
     content.className = 'modal-content';
 
-    const statusIcon = result.success ? '✅' : '❌';
+    const statusIcon = result.success ? '<i data-lucide="check-circle" style="width:20px;height:20px;color:#10b981;"></i>' : '<i data-lucide="x-circle" style="width:20px;height:20px;color:#ef4444;"></i>';
     const statusText = result.success ? 'Automation Completed' : 'Automation Failed';
 
     content.innerHTML = `
@@ -426,6 +443,7 @@ function displayAutomationResult(workflowName, result) {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     document.body.appendChild(overlay);
+    refreshIcons();
 }
 
 // ---------- Delete Workflow ----------
@@ -452,7 +470,7 @@ function showError(title, message, hint = '') {
     const content = document.createElement('div');
     content.className = 'modal-content';
     content.innerHTML = `
-        <h3>⚠️ ${title}</h3>
+        <h3><i data-lucide="alert-triangle" style="width:20px;height:20px;color:#f59e0b;display:inline-block;vertical-align:middle;margin-right:8px;"></i>${title}</h3>
         <p style="color: #f87171; margin-bottom: 12px;">${escapeHtml(message)}</p>
         ${hint ? `<p style="color: #6b7280; font-size: 13px;">${escapeHtml(hint)}</p>` : ''}
         <button style="background: #ef4444;">Close</button>
@@ -463,6 +481,7 @@ function showError(title, message, hint = '') {
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     document.body.appendChild(overlay);
+    refreshIcons();
 }
 
 // ---------- Workflow Editor Modal ----------
@@ -530,18 +549,18 @@ async function reanalyzeWorkflow(wf) {
             loadWorkflows();
         });
         
-        reanalyzeBtn.innerHTML = '✅ Re-analyzed!';
+        reanalyzeBtn.innerHTML = '<i data-lucide="check"></i> Re-analyzed!';
         setTimeout(() => {
-            reanalyzeBtn.innerHTML = '🔄 Re-analyze with AI';
+            reanalyzeBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Re-analyze with AI';
             reanalyzeBtn.disabled = false;
         }, 2000);
         
     } catch (error) {
         console.error('Re-analysis failed:', error);
-        reanalyzeBtn.innerHTML = '❌ Failed';
+        reanalyzeBtn.innerHTML = '<i data-lucide="x"></i> Failed';
         showError('Re-analysis Failed', error.message, 'Make sure the backend server is running');
         setTimeout(() => {
-            reanalyzeBtn.innerHTML = '🔄 Re-analyze with AI';
+            reanalyzeBtn.innerHTML = '<i data-lucide="refresh-cw"></i> Re-analyze with AI';
             reanalyzeBtn.disabled = false;
         }, 2000);
     }
@@ -562,9 +581,9 @@ function openWorkflowEditor(wf) {
 
     content.innerHTML = `
         <div class="workflow-editor-header">
-            <h3>📝 Edit Workflow: ${escapeHtml(wf.name)}</h3>
+            <h3><i data-lucide="file-edit" style="width:20px;height:20px;display:inline-block;vertical-align:middle;margin-right:8px;"></i>Edit Workflow: ${escapeHtml(wf.name)}</h3>
             <button class="btn-secondary" id="reanalyze-btn" style="padding: 8px 16px; font-size: 13px;">
-                🔄 Re-analyze with AI
+                <i data-lucide="refresh-cw"></i> Re-analyze with AI
             </button>
         </div>
         
@@ -592,13 +611,16 @@ function openWorkflowEditor(wf) {
         <div class="modal-actions">
             <button class="btn-secondary" id="editor-cancel">Cancel</button>
             <button class="btn-secondary" id="editor-save">Save Changes</button>
-            <button class="btn-primary" id="editor-run">▶ Run Automation</button>
+            <button class="btn-primary" id="editor-run"><i data-lucide="play"></i> Run Automation</button>
         </div>
     `;
 
     overlay.appendChild(content);
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     document.body.appendChild(overlay);
+    
+    // Refresh Lucide icons for dynamic content
+    refreshIcons();
 
     // Setup event listeners
     document.getElementById('editor-cancel').onclick = () => overlay.remove();
