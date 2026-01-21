@@ -29,6 +29,8 @@ class WorkflowEventModel(BaseModel):
     url: str = ""
     title: str = ""
     data: dict = Field(default_factory=dict)
+    raw: dict = Field(default_factory=dict)
+    automation: dict = Field(default_factory=dict)
 
     class Config:
         populate_by_name = True
@@ -43,6 +45,8 @@ class AutomateRequest(BaseModel):
     enable_human_in_loop: bool = False
     # Optional: pre-generated task description (bypasses LLM generation if provided)
     task_description: Optional[str] = None
+    # Optional: user-provided input values for form fields (username, password, etc.)
+    input_values: Optional[dict[str, str]] = None
 
 
 class TaskRequest(BaseModel):
@@ -50,6 +54,8 @@ class TaskRequest(BaseModel):
     task: str
     headless: bool = False
     enable_human_in_loop: bool = False
+    # Optional: user-provided input values for form fields
+    input_values: Optional[dict[str, str]] = None
 
 
 class DescribeRequest(BaseModel):
@@ -63,6 +69,7 @@ class DescribeResponse(BaseModel):
     title: str
     description: str
     steps: list[dict]
+    required_inputs: list[dict] = Field(default_factory=list)
 
 
 class AutomateResponse(BaseModel):
@@ -240,19 +247,24 @@ async def describe_workflow(request: DescribeRequest):
     
     Uses gemini-pro for high reasoning capability to convert raw events
     into a human-readable step-by-step plan that can be edited before execution.
+    Also detects required input fields (username, password, 2FA, etc.).
     """
     try:
-        # Convert events to dict format
-        events = [
-            {
+        # Convert events to dict format with all available data
+        # Merge data and raw fields for backwards compatibility
+        events = []
+        for e in request.events:
+            # Combine data and raw - raw takes precedence as it's the new format
+            combined_data = {**e.data, **e.raw}
+            events.append({
                 "event_type": e.event,
                 "timestamp": e.timestamp,
                 "url": e.url,
                 "title": e.title,
-                "data": e.data,
-            }
-            for e in request.events
-        ]
+                "data": combined_data,
+                "raw": e.raw,
+                "automation": e.automation,
+            })
         
         # Generate structured workflow steps using current settings
         llm_client = LLMClient(
@@ -264,7 +276,8 @@ async def describe_workflow(request: DescribeRequest):
         return DescribeResponse(
             title=result.get("title", "Workflow"),
             description=result.get("description", ""),
-            steps=result.get("steps", [])
+            steps=result.get("steps", []),
+            required_inputs=result.get("required_inputs", [])
         )
         
     except Exception as e:
@@ -279,6 +292,9 @@ async def automate_workflow(request: AutomateRequest, background_tasks: Backgrou
     If task_description is provided, uses it directly.
     Otherwise, converts workflow events to a task description using LLM,
     then executes the automation using browser-use.
+    
+    input_values can contain user-provided credentials that will be passed
+    to browser-use as sensitive_data for automatic form filling.
     """
     try:
         # If task_description is provided, use it directly (Human-in-the-Middle flow)
@@ -317,14 +333,24 @@ async def automate_workflow(request: AutomateRequest, background_tasks: Backgrou
             )
             task_description = llm_client.generate_task_description(workflow)
         
-        # Run automation with current settings
+        # Prepare sensitive_data from input_values if provided
+        sensitive_data = None
+        if request.input_values:
+            sensitive_data = request.input_values
+            # Also inject values into task description using placeholders
+            for key, value in request.input_values.items():
+                placeholder = "{{" + key + "}}"
+                # Use a safe placeholder format that browser-use understands
+                task_description = task_description.replace(placeholder, f"<secret>{key}</secret>")
+        
+        # Run automation with current settings and sensitive data
         runner = AutomationRunner(
             headless=request.headless if request.headless else runtime_settings.headless,
             enable_human_in_loop=request.enable_human_in_loop if request.enable_human_in_loop else runtime_settings.enable_human_in_loop,
             human_input_callback=human_input_manager.ask_human if (request.enable_human_in_loop or runtime_settings.enable_human_in_loop) else None,
         )
         
-        result = await runner.run_task(task_description)
+        result = await runner.run_task(task_description, sensitive_data=sensitive_data)
         
         return AutomateResponse(
             success=result["success"],
