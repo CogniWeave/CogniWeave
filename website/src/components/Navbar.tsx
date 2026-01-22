@@ -40,7 +40,7 @@ export function Navbar() {
                                 />
                             </svg>
                         </div>
-                        <span className="text-xl font-bold">AutoPattern</span>
+                        <span className="text-xl font-bold">CogniWeave</span>
                     </Link>
 
                     {/* Nav Links */}

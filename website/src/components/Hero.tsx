@@ -24,7 +24,7 @@ export function Hero() {
 
                 {/* Subtitle */}
                 <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-                    Record once, replay forever. AutoPattern learns your browser workflows
+                    Record once, replay forever. CogniWeave learns your browser workflows
                     and automates them using cutting-edge AI. Say goodbye to repetitive
                     tasks.
                 </p>
@@ -109,7 +109,7 @@ export function Hero() {
                                 </div>
                                 <div className="flex-1 mx-4">
                                     <div className="bg-white/10 rounded-lg px-4 py-1.5 text-sm text-gray-400 text-center">
-                                        AutoPattern Dashboard
+                                        CogniWeave Dashboard
                                     </div>
                                 </div>
                             </div>

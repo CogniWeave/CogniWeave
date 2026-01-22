@@ -11,7 +11,7 @@ export function Demo() {
                         See It In <span className="gradient-text">Action</span>
                     </h2>
                     <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                        Watch how AutoPattern transforms manual browser tasks into automated
+                        Watch how CogniWeave transforms manual browser tasks into automated
                         workflows.
                     </p>
                 </div>
@@ -204,7 +204,7 @@ export function Demo() {
                         href="chrome-extension://oigefdjfcokhefifcockgnpjfgefomdd/src/ui/dashboard.html"
                         className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 transition-all hover:scale-105 font-semibold"
                     >
-                        Try AutoPattern Now
+                        Try CogniWeave Now
                         <svg
                             className="w-5 h-5"
                             fill="none"

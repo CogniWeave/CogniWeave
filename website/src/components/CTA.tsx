@@ -22,7 +22,7 @@ export function CTA() {
                 {/* Subtitle */}
                 <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
                     Join thousands of users who have automated their browser workflows
-                    with AutoPattern. Get started in seconds.
+                    with CogniWeave. Get started in seconds.
                 </p>
 
                 {/* CTA Buttons */}
@@ -44,7 +44,7 @@ export function CTA() {
                                 d="M13 10V3L4 14h7v7l9-11h-7z"
                             />
                         </svg>
-                        Open AutoPattern
+                        Open CogniWeave
                         <svg
                             className="w-5 h-5 group-hover:translate-x-1 transition-transform"
                             fill="none"

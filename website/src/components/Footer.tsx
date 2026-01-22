@@ -23,7 +23,7 @@ export function Footer() {
                                     />
                                 </svg>
                             </div>
-                            <span className="text-xl font-bold">AutoPattern</span>
+                            <span className="text-xl font-bold">CogniWeave</span>
                         </Link>
                         <p className="text-gray-400 max-w-md">
                             Automate your browser tasks with AI. Record once, replay forever.
@@ -98,7 +98,7 @@ export function Footer() {
                 {/* Bottom Bar */}
                 <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10 gap-4">
                     <p className="text-gray-400 text-sm">
-                        © {new Date().getFullYear()} AutoPattern. Open source under MIT
+                        © {new Date().getFullYear()} CogniWeave. Open source under MIT
                         License.
                     </p>
                     <div className="flex items-center gap-6">

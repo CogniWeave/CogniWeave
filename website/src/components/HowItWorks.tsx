@@ -3,7 +3,7 @@ const steps = [
         step: "01",
         title: "Record Your Workflow",
         description:
-            "Click the record button and perform your tasks normally. AutoPattern captures every action, click, and input.",
+            "Click the record button and perform your tasks normally. CogniWeave captures every action, click, and input.",
         icon: (
             <svg
                 className="w-12 h-12"
