@@ -24,9 +24,6 @@ class Config:
     # Browser-use settings
     headless: bool = field(default_factory=lambda: os.getenv("HEADLESS", "false").lower() == "true")
     
-    # Human-in-the-loop settings
-    enable_human_in_loop: bool = field(default_factory=lambda: os.getenv("ENABLE_HUMAN_IN_LOOP", "false").lower() == "true")
-    
     # Paths
     project_root: Path = field(default_factory=lambda: Path(__file__).parent.parent.parent)
     

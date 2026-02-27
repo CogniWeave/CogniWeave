@@ -59,7 +59,6 @@ Endpoints:
 - `POST /api/describe` - Generate workflow description and steps
 - `POST /api/automate` - Automate from workflow events
 - `POST /api/automate/task` - Automate from task description
-- `WebSocket /ws/automation` - Human-in-the-loop interactions
 
 ### CLI Tool
 
@@ -72,9 +71,6 @@ uv run python -m automation.main --workflow <path-to-csv>
 
 # Use your real Chrome profile (with cookies, extensions)
 uv run python -m automation.main --task "..." --use-profile
-
-# Enable human-in-the-loop (agent can ask for help)
-uv run python -m automation.main --task "..." --human-in-loop
 ```
 
 ### As a Library
@@ -85,19 +81,9 @@ from automation import AutomationRunner
 runner = AutomationRunner(
     headless=False,
     use_user_profile=True,      # Use your Chrome profile
-    enable_human_in_loop=True,  # Agent can ask for help
 )
 result = runner.run_task_sync("Navigate to google.com and search for Python")
 ```
-
-## Features
-
-### Human-in-the-Loop
-
-Use `--human-in-loop` to enable agent-human collaboration:
-- Agent can ask clarifying questions
-- Request approval before critical actions
-- Handle CAPTCHAs or complex decisions
 
 ## Project Structure
 

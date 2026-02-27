@@ -159,7 +159,6 @@ function applySettingsToUI() {
     const analysisModelEl = document.getElementById('setting-analysis-model');
     const llmModelEl = document.getElementById('setting-llm-model');
     const headlessEl = document.getElementById('setting-headless');
-    const humanLoopEl = document.getElementById('setting-human-loop');
     
     if (analysisModelEl) {
         analysisModelEl.value = currentSettings.analysis_model || 'gemini-pro-latest';
@@ -172,10 +171,6 @@ function applySettingsToUI() {
     if (headlessEl) {
         headlessEl.checked = currentSettings.headless || false;
     }
-    
-    if (humanLoopEl) {
-        humanLoopEl.checked = currentSettings.enable_human_in_loop || false;
-    }
 }
 
 /**
@@ -185,8 +180,7 @@ function gatherSettingsFromUI() {
     return {
         analysis_model: document.getElementById('setting-analysis-model')?.value || 'gemini-pro-latest',
         llm_model: document.getElementById('setting-llm-model')?.value || 'gemini-flash-latest',
-        headless: document.getElementById('setting-headless')?.checked || false,
-        enable_human_in_loop: document.getElementById('setting-human-loop')?.checked || false,
+        headless: document.getElementById('setting-headless')?.checked || false
     };
 }
 
