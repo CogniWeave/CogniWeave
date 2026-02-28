@@ -17,7 +17,7 @@ const features = [
         ),
         title: "Record Workflows",
         description:
-            "Simply perform your tasks once. CogniWeave captures every click, scroll, and input automatically.",
+            "Simply perform your tasks once. AutoPattern captures every click, scroll, and input automatically.",
         color: "from-purple-500 to-purple-600",
     },
     {

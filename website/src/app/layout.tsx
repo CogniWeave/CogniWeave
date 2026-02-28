@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CogniWeave - AI-Powered Browser Automation",
-  description: "Record once, replay forever. CogniWeave learns your browser workflows and automates them with AI.",
+  title: "AutoPattern - AI-Powered Browser Automation",
+  description: "Record once, replay forever. AutoPattern learns your browser workflows and automates them with AI.",
   icons: {
     icon: '/favicon.svg',
   },

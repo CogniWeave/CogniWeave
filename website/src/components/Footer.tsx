@@ -23,7 +23,7 @@ export function Footer() {
                                     />
                                 </svg>
                             </div>
-                            <span className="text-xl font-bold">CogniWeave</span>
+                            <span className="text-xl font-bold">AutoPattern</span>
                         </Link>
                         <p className="text-gray-400 max-w-md">
                             Automate your browser tasks with AI. Record once, replay forever.
@@ -66,7 +66,7 @@ export function Footer() {
                         <ul className="space-y-2 text-gray-400">
                             <li>
                                 <a
-                                    href="https://github.com/autopattern/autopattern"
+                                    href="https://github.com/AadityaChaudhary/autopattern"
                                     target="_blank"
                                     className="hover:text-white transition-colors"
                                 >
@@ -75,7 +75,7 @@ export function Footer() {
                             </li>
                             <li>
                                 <a
-                                    href="https://github.com/autopattern/autopattern/issues"
+                                    href="https://github.com/AadityaChaudhary/autopattern/issues"
                                     target="_blank"
                                     className="hover:text-white transition-colors"
                                 >
@@ -98,12 +98,12 @@ export function Footer() {
                 {/* Bottom Bar */}
                 <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-white/10 gap-4">
                     <p className="text-gray-400 text-sm">
-                        © {new Date().getFullYear()} CogniWeave. Open source under MIT
+                        © {new Date().getFullYear()} AutoPattern. Open source under MIT
                         License.
                     </p>
                     <div className="flex items-center gap-6">
                         <a
-                            href="https://github.com/autopattern/autopattern"
+                            href="https://github.com/AadityaChaudhary/autopattern"
                             target="_blank"
                             className="text-gray-400 hover:text-white transition-colors"
                         >

@@ -40,7 +40,7 @@ export function Navbar() {
                                 />
                             </svg>
                         </div>
-                        <span className="text-xl font-bold">CogniWeave</span>
+                        <span className="text-xl font-bold">AutoPattern</span>
                     </Link>
 
                     {/* Nav Links */}
@@ -64,7 +64,7 @@ export function Navbar() {
                             Demo
                         </Link>
                         <Link
-                            href="https://github.com/autopattern/autopattern"
+                            href="https://github.com/AadityaChaudhary/autopattern"
                             target="_blank"
                             className="text-gray-400 hover:text-white transition-colors"
                         >
