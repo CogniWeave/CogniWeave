@@ -11,6 +11,7 @@ Usage:
 """
 
 import asyncio
+import os
 import signal
 import sys
 from datetime import datetime
@@ -19,7 +20,7 @@ from typing import Optional
 
 from .config import config
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 AVAILABLE_MODELS = [
     "gemini-flash-latest",
@@ -39,13 +40,14 @@ HELP_TEXT = """
 │    /help                 Show this help message            │
 │    /load <file.csv>      Load a workflow CSV file          │
 │    /model [name]         Show or change the LLM model      │
-│    /headless [on|off]    Toggle headless browser mode       │
-│    /history              Show tasks run this session        │
-│    /clear                Clear session history              │
+│    /headless [on|off]    Toggle headless browser mode      │
+│    /history              Show tasks run this session       │
+│    /clear                Clear session history             │
+│    /key [key]            Show or change the API key        │
 │    /quit or /exit        Exit AutoPattern                  │
 │                                                            │
 │  While a task is running:                                  │
-│    Ctrl+C                Stop the running task              │
+│    Ctrl+C                Stop the running task             │
 │                                                            │
 │  At the prompt:                                            │
 │    Ctrl+C twice          Exit AutoPattern                  │
@@ -65,19 +67,85 @@ _headless: bool = config.headless
 
 
 # ---------------------------------------------------------------------------
+# API key setup
+# ---------------------------------------------------------------------------
+
+def _ensure_api_key() -> bool:
+    """Check for GOOGLE_API_KEY; prompt user to enter one if missing.
+
+    Returns True if a valid key is available, False to abort.
+    """
+    if config.google_api_key:
+        return True
+
+    print()
+    print("  GOOGLE_API_KEY is not set.")
+    print("  You need a free Gemini API key from:")
+    print("  https://aistudio.google.com/app/apikey\n")
+
+    try:
+        key = input("  Paste your API key here > ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\n  Aborted.")
+        return False
+
+    if not key:
+        print("  No key entered. Exiting.")
+        return False
+
+    # Apply to current process
+    os.environ["GOOGLE_API_KEY"] = key
+    config.google_api_key = key
+
+    # Offer to save to .env so they don't have to enter it again
+    try:
+        save = input("  Save to .env so you don't have to enter it again? (Y/n) > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        save = "n"
+
+    if save in ("", "y", "yes"):
+        _save_key_to_dotenv(key)
+        print("  Key saved to .env\n")
+    else:
+        print("  Key set for this session only.\n")
+
+    return True
+
+
+def _save_key_to_dotenv(key: str, path: Path | None = None):
+    """Append or update GOOGLE_API_KEY in a .env file."""
+    env_file = path or Path.cwd() / ".env"
+    lines: list[str] = []
+    replaced = False
+
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                if line.strip().startswith("GOOGLE_API_KEY="):
+                    lines.append(f'GOOGLE_API_KEY="{key}"\n')
+                    replaced = True
+                else:
+                    lines.append(line)
+
+    if not replaced:
+        lines.append(f'GOOGLE_API_KEY="{key}"\n')
+
+    with open(env_file, "w") as f:
+        f.writelines(lines)
+
+
+# ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
 
 def _print_banner(port: int):
     print(f"""
-╭────────────────────────────────────────────╮
-│          ⚡ AutoPattern v{VERSION}             │
-│   AI-powered browser automation from CLI   │
-╰────────────────────────────────────────────╯
+  AutoPattern v{VERSION}
+  AI-powered browser automation from CLI
 
-  📡 API server  : http://localhost:{port}
-  🤖 LLM model   : {config.llm_model}
-  🖥️  Headless    : {_headless}
+  API server : http://localhost:{port}
+  LLM model  : {config.llm_model}
+  Headless   : {_headless}
 
   Type a task to automate, or /help for commands.
 """)
@@ -151,7 +219,7 @@ def _cmd_model(args: str):
             runtime_settings.llm_model = new_model
         except Exception:
             pass
-        print(f"  ✅ Model changed to: {new_model}")
+        print(f"  Model set to: {new_model}")
 
 
 def _cmd_headless(args: str):
@@ -173,11 +241,11 @@ def _cmd_headless(args: str):
     config.headless = _headless
     # Force a new browser on next task with the new setting
     if _browser is not None:
-        print("  ℹ️  Browser will restart with new setting on next task.")
+        print("  Note: Browser will restart with new setting on next task.")
         # Schedule close; next _get_browser() will create a new one
         asyncio.get_event_loop().create_task(_close_browser())
 
-    print(f"  ✅ Headless mode: {'on' if _headless else 'off'}")
+    print(f"  Headless mode: {'on' if _headless else 'off'}")
 
 
 def _cmd_history():
@@ -186,7 +254,7 @@ def _cmd_history():
         return
     print()
     for i, entry in enumerate(_history, 1):
-        status = "✅" if entry["success"] else ("⏹️" if entry.get("cancelled") else "❌")
+        status = "ok" if entry["success"] else ("stopped" if entry.get("cancelled") else "failed")
         task_preview = entry["task"][:70] + ("..." if len(entry["task"]) > 70 else "")
         print(f"  {i}. {status} [{entry['time']}] {task_preview}")
     print()
@@ -194,7 +262,34 @@ def _cmd_history():
 
 def _cmd_clear():
     _history.clear()
-    print("  ✅ Session history cleared.")
+    print("  Session history cleared.")
+
+
+def _cmd_key(args: str):
+    """Show or change the API key."""
+    parts = args.strip()
+    if not parts:
+        key = config.google_api_key
+        if key:
+            masked = key[:4] + "..." + key[-4:] if len(key) > 8 else "****"
+            print(f"  Current API key: {masked}")
+        else:
+            print("  No API key set.")
+        return
+
+    # Set new key
+    os.environ["GOOGLE_API_KEY"] = parts
+    config.google_api_key = parts
+    print(f"  API key updated.")
+
+    try:
+        save = input("  Save to .env? (Y/n) > ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        save = "n"
+
+    if save in ("", "y", "yes"):
+        _save_key_to_dotenv(parts)
+        print("  Saved to .env")
 
 
 async def _cmd_load(args: str):
@@ -215,30 +310,30 @@ async def _cmd_load(args: str):
             workflow_id = parts[idx + 1]
 
     if not csv_path.exists():
-        print(f"  ❌ File not found: {csv_path}")
+        print(f"  Error: File not found: {csv_path}")
         return
 
-    print(f"  📂 Loading workflow from: {csv_path}")
+    print(f"  Loading workflow from: {csv_path}")
     try:
         loader = WorkflowLoader(csv_path)
         workflow = loader.load_single(workflow_id)
     except Exception as e:
-        print(f"  ❌ Failed to load workflow: {e}")
+        print(f"  Error: Failed to load workflow: {e}")
         return
 
-    print(f"  📊 Workflow: {workflow.workflow_id} ({len(workflow.events)} events)")
-    print(f"  🌐 Start URL: {workflow.start_url}")
+    print(f"  Workflow: {workflow.workflow_id} ({len(workflow.events)} events)")
+    print(f"  Start URL: {workflow.start_url}")
 
-    print("\n  🤖 Generating task description with LLM...")
+    print("\n  Generating task description...")
     try:
         config.validate()
         llm_client = LLMClient()
         task_description = llm_client.generate_task_description(workflow)
     except Exception as e:
-        print(f"  ❌ LLM generation failed: {e}")
+        print(f"  Error: LLM generation failed: {e}")
         return
 
-    print(f"\n  ✨ Generated task:")
+    print(f"\n  Generated task:")
     print(f"     {task_description}\n")
 
     # Ask to run
@@ -289,12 +384,12 @@ async def _execute_task(task_description: str, sensitive_data: Optional[dict] = 
             "time": datetime.now().strftime("%H:%M:%S"),
         })
         if result["success"]:
-            print("\n  ✅ Task completed successfully!")
+            print("\n  Task completed.")
         else:
-            print(f"\n  ❌ Task failed: {result.get('error', 'Unknown error')}")
+            print(f"\n  Error: {result.get('error', 'Unknown error')}")
 
     except asyncio.CancelledError:
-        print("\n  ⏹️  Task cancelled.")
+        print("\n  Task cancelled.")
         _history.append({
             "task": task_description,
             "success": False,
@@ -316,6 +411,10 @@ async def start_chat(port: int = 5001):
     import logging
     import uvicorn
     from .server import app as fastapi_app
+
+    # --- Ensure API key is configured ---
+    if not _ensure_api_key():
+        sys.exit(1)
 
     # Suppress noisy uvicorn/starlette shutdown tracebacks
     logging.getLogger("uvicorn.error").setLevel(logging.CRITICAL)
@@ -379,6 +478,8 @@ async def start_chat(port: int = 5001):
                     _cmd_clear()
                 elif cmd == "/load":
                     await _cmd_load(cmd_args)
+                elif cmd == "/key":
+                    _cmd_key(cmd_args)
                 else:
                     print(f"  Unknown command: {cmd}. Type /help for available commands.")
                 continue

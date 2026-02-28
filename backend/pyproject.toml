@@ -1,6 +1,6 @@
 [project]
 name = "autopattern"
-version = "0.2.0"
+version = "0.2.1"
 description = "Record and automate browser workflows with AI. Chat-based CLI + API server powered by Gemini and browser-use."
 readme = "README.md"
 requires-python = ">=3.11"
