@@ -2,9 +2,10 @@
 Main entry point for the workflow-to-automation pipeline.
 
 Usage:
-    python main.py --workflow <path-to-csv>
-    python main.py --workflow <path-to-csv> --workflow-id <id>
-    python main.py --task "Navigate to google.com and search for Python"
+    autopattern                             # interactive chat + API server
+    autopattern --workflow <path-to-csv>
+    autopattern --task "Navigate to google.com and search for Python"
+    autopattern --server                    # API server only (no chat)
 """
 
 import argparse
@@ -31,7 +32,7 @@ def parse_args():
         description="Convert recorded workflows to automated browser actions"
     )
     
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "--workflow",
         type=Path,
@@ -146,10 +147,16 @@ def main():
     try:
         args = parse_args()
         
-        # Handle server mode outside of asyncio.run to avoid event loop conflicts
+        # Handle server-only mode
         if args.server:
             from .server import run_server
             run_server(port=args.port)
+            sys.exit(0)
+        
+        # Default: no mode flag → interactive chat + background API server
+        if not args.workflow and not args.task:
+            from .chat import start_chat
+            asyncio.run(start_chat(port=args.port))
             sys.exit(0)
             
         exit_code = asyncio.run(main_async(args))

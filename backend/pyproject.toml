@@ -1,9 +1,29 @@
 [project]
-name = "autopattern-backend"
+name = "autopattern"
 version = "0.2.0"
-description = "Backend services for AutoPattern - workflow to automation pipeline"
+description = "Record and automate browser workflows with AI. Chat-based CLI + API server powered by Gemini and browser-use."
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Ganesh"},
+    {name = "Charan"},
+]
+keywords = ["browser-automation", "ai", "gemini", "workflow", "rpa", "browser-use", "playwright"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "browser-use>=0.1.0",
     "langchain-core>=0.3.0",
@@ -23,7 +43,14 @@ dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "httpx>=0.27.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/AadityaChaudhary/autopattern"
+Repository = "https://github.com/AadityaChaudhary/autopattern"
+"Bug Tracker" = "https://github.com/AadityaChaudhary/autopattern/issues"
 
 [project.scripts]
 autopattern = "automation.main:main"
@@ -34,3 +61,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["automation"]
+
+[tool.hatch.build.targets.sdist]
+include = ["automation/", "README.md", "LICENSE"]
+
+[dependency-groups]
+dev = [
+    "build>=1.4.0",
+    "twine>=6.2.0",
+]

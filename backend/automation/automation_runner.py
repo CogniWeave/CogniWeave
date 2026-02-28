@@ -31,7 +31,7 @@ class AutomationRunner:
         from browser_use import Tools
         return Tools()
     
-    async def run_task(self, task_description: str, sensitive_data: dict = None) -> dict:
+    async def run_task(self, task_description: str, sensitive_data: Optional[dict] = None, browser=None) -> dict:
         """
         Execute a task using browser-use.
         
@@ -39,6 +39,8 @@ class AutomationRunner:
             task_description: Natural language description of the task to perform.
             sensitive_data: Optional dict of sensitive values (credentials, etc.) to pass to browser-use.
                            Keys should match placeholders in the task description.
+            browser: Optional pre-existing Browser instance to reuse.
+                     If None, a new browser is created.
             
         Returns:
             dict with execution results including history and status.
@@ -65,8 +67,9 @@ class AutomationRunner:
         # Use gemini-flash-lite for page extraction (faster, cheaper)
         page_extraction_llm = ChatGoogle(model="gemini-flash-lite-latest")
         
-        # Initialize browser
-        browser = self._create_browser()
+        # Initialize browser (reuse if provided)
+        if browser is None:
+            browser = self._create_browser()
         
         # Create tools
         tools = self._create_tools()
